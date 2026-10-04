@@ -125,6 +125,12 @@ class CalcBound {
     }
 
     async run(splat: Splat, selectionBound: BoundingBox, localBound: BoundingBox, poseTexture?: Texture): Promise<void> {
+        if (!splat.instances.count) {
+            selectionBound.center.set(0, 0, 0);
+            selectionBound.halfExtents.set(0, 0, 0);
+            localBound.copy(selectionBound);
+            return;
+        }
         const transformA = splat.resource.getTexture('transformA');
         // 4 vec4 partials per thread, and the thread count is fixed
         const byteSize = NUM_THREADS * 4 * 16;

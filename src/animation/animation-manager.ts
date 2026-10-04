@@ -14,6 +14,9 @@ const assetToEditor = new Mat4().set([0, 0, -1, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0
 
 const registerAnimationEvents = (scene: Scene): void => {
     const { events } = scene;
+    scene.canvas.parentElement.addEventListener('pointerdown', () => {
+        if (events.invoke('tool.active')) events.fire('animation.freeze');
+    }, true);
     const layers = (): Splat[] => (scene.getElementsByType(ElementType.splat) as Splat[]).filter(splat => splat.animation);
     let bindingColors = false;
     events.function('animation.bindingColors', () => bindingColors);
@@ -82,6 +85,17 @@ const registerAnimationEvents = (scene: Scene): void => {
         splat.animation?.invalidate();
         events.fire('animation.layers', layers());
     });
+    events.on('scene.elementAdded', () => events.fire('animation.layers', layers()));
+    events.on('animation.freeze', () => {
+        events.fire('timeline.setPlaying', false);
+        pending = null;
+        layers().forEach(splat => splat.animation.invalidate());
+    });
+    for (const event of ['pivot.started', 'edit.undo', 'edit.redo', 'edit.duplicate', 'edit.separate',
+        'select.all', 'select.none', 'select.invert', 'select.delete', 'select.byRect', 'select.byMask',
+        'select.bySphere', 'select.byBox', 'select.byColor', 'select.lock', 'select.unlock']) {
+        events.on(event, () => events.fire('animation.freeze'));
+    }
     events.on('scene.clear', () => {
         pending = null;
     });

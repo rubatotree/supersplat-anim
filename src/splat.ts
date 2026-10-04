@@ -10,6 +10,7 @@ import {
 } from 'playcanvas';
 
 import { AnimatedGeometry, staticPoseTexture } from './animation/animated-geometry';
+import { BgsProvider } from './animation/bgs-provider';
 import { ColorGrade, createGradeTerms, gradeTerms } from './color-grade';
 import { ColorPalette } from './color-palette';
 import { EditorSplatResource } from './editor-splat-resource';
@@ -277,6 +278,7 @@ class Splat extends Element {
 
         // we must update state in case the state data was loaded from ply
         await this.updateState();
+        if (this.animation) await this.animation.prepare(this.scene.events.invoke('timeline.seconds'));
     }
 
     remove() {
@@ -341,6 +343,11 @@ class Splat extends Element {
             }
         }
 
+        if (this.animation) {
+            layer.animation = new AnimatedGeometry(layer, new BgsProvider(this.animation.provider.data), this.animation.sourceRows);
+            layer.animation.clipId = this.animation.clipId;
+            layer.animation.bindPose = this.animation.bindPose;
+        }
         return layer;
     }
 

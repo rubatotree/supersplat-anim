@@ -1,5 +1,7 @@
 import { Mat4, Vec3 } from 'playcanvas';
 
+import type { CanonicalSnapshot } from './animation/animated-geometry';
+import { CanonicalEditOp } from './animation/canonical-edit-op';
 import { PlacePivotOp, SplatsTransformOp, MultiOp } from './edit-ops';
 import { Events } from './events';
 import { Pivot } from './pivot';
@@ -20,6 +22,7 @@ class SplatsTransformHandler implements TransformHandler {
     worldToLocal = new Mat4();
 
     transform = new Mat4();
+    private canonicalBefore: CanonicalSnapshot | null = null;
     paletteMap = new Map<number, number>();
 
     constructor(events: Events) {
@@ -98,6 +101,12 @@ class SplatsTransformHandler implements TransformHandler {
         this.worldToLocal.invert(splat.entity.getLocalTransform());
 
         this.pivotStart.copy(transform);
+        this.transform.setIdentity();
+
+        if (splat.animation) {
+            this.canonicalBefore = splat.animation.beginEdit();
+            return;
+        }
 
         // allocate a new transform for the current selection
         const { instances } = splat;
@@ -142,6 +151,13 @@ class SplatsTransformHandler implements TransformHandler {
 
         this.transform.copy(mat);
 
+        if (this.splat.animation) {
+            const splat = this.splat;
+            splat.animation.preview(mat);
+            this.events.invoke('queue', () => splat.updateLocalBounds());
+            return;
+        }
+
         // update the transform palette
         const { transformPalette } = this.splat;
         this.paletteMap.forEach((newIdx, oldIdx) => {
@@ -159,6 +175,19 @@ class SplatsTransformHandler implements TransformHandler {
 
     async end() {
         const { splat, transform, paletteMap } = this;
+
+        if (splat.animation && this.canonicalBefore) {
+            const before = this.canonicalBefore;
+            const after = splat.animation.finishEdit(transform, before);
+            this.canonicalBefore = null;
+            const pivot = this.events.invoke('pivot') as Pivot;
+            this.events.fire('edit.add', new MultiOp([
+                new CanonicalEditOp(splat, before, after),
+                new PlacePivotOp({ pivot, oldt: this.pivotStart.clone(), newt: pivot.transform.clone() })
+            ]), true);
+            await this.events.invoke('queue', () => splat.updatePositions());
+            return;
+        }
 
         // create op for splat transform (already applied to GPU during update())
         const top = new SplatsTransformOp({

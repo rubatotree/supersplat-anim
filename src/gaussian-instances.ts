@@ -15,6 +15,7 @@ type RemovedInstances = {
     sourceRow: Uint32Array;
     flags: Uint8Array;
     palette: Uint32Array;
+    canonicalEdits?: Float64Array;
 };
 
 // the PLY state column's deleted bit. instances have no deleted state, so rows
@@ -60,6 +61,8 @@ class DirtySpan {
 // This is the sole writer of its arrays: mutators record a dirty range and
 // keep the counts current, then flush() uploads to the GPU mirrors.
 class GaussianInstances {
+    canonicalEdits?: Float64Array;
+    canonicalVersion = 0;
     count: number;
 
     // instance -> static row
@@ -133,11 +136,13 @@ class GaussianInstances {
         // layer has after a document round trip the same as the one it had before.
         const capacity = source.sourceRow.length;
         const result = new GaussianInstances(device, capacity);
+        if (source.canonicalEdits) result.canonicalEdits = new Float64Array(capacity * 16);
         let dst = 0;
         ranges.forEachRun((start, count) => {
             const end = start + count;
             result.sourceRow.set(source.sourceRow.subarray(start, end), dst);
             result.palette.set(source.palette.subarray(start, end), dst);
+            result.canonicalEdits?.set(source.canonicalEdits.subarray(start * 16, end * 16), dst * 16);
             // flags is a byte view over the packed words, so runs copy directly
             result.flags.set(source.flags.subarray(start, end), dst);
             dst += count;
@@ -220,7 +225,8 @@ class GaussianInstances {
             ranges,
             sourceRow: new Uint32Array(total),
             flags: new Uint8Array(total),
-            palette: new Uint32Array(total)
+            palette: new Uint32Array(total),
+            canonicalEdits: this.canonicalEdits ? new Float64Array(total * 16) : undefined
         };
         if (total === 0) {
             return removed;
@@ -243,11 +249,13 @@ class GaussianInstances {
                 sourceRow.copyWithin(dst, src, start);
                 flags.copyWithin(dst, src, start);
                 palette.copyWithin(dst, src, start);
+                this.canonicalEdits?.copyWithin(dst * 16, src * 16, start * 16);
                 dst += start - src;
             }
             removed.sourceRow.set(sourceRow.subarray(start, start + count), out);
             removed.flags.set(flags.subarray(start, start + count), out);
             removed.palette.set(palette.subarray(start, start + count), out);
+            removed.canonicalEdits?.set(this.canonicalEdits.subarray(start * 16, (start + count) * 16), out * 16);
             out += count;
             src = start + count;
         });
@@ -255,9 +263,11 @@ class GaussianInstances {
             sourceRow.copyWithin(dst, src, this.count);
             flags.copyWithin(dst, src, this.count);
             palette.copyWithin(dst, src, this.count);
+            this.canonicalEdits?.copyWithin(dst * 16, src * 16, this.count * 16);
             dst += this.count - src;
         }
 
+        this.canonicalVersion++;
         this.count = dst;
         this.numRemoved += total;
         this.markDirty(first, dst);
@@ -290,15 +300,24 @@ class GaussianInstances {
                 sourceRow.copyWithin(dstEnd - keep, srcEnd - keep, srcEnd);
                 flags.copyWithin(dstEnd - keep, srcEnd - keep, srcEnd);
                 palette.copyWithin(dstEnd - keep, srcEnd - keep, srcEnd);
+                this.canonicalEdits?.copyWithin((dstEnd - keep) * 16, (srcEnd - keep) * 16, srcEnd * 16);
                 srcEnd -= keep;
             }
             out -= count;
             sourceRow.set(removed.sourceRow.subarray(out, out + count), start);
             flags.set(removed.flags.subarray(out, out + count), start);
             palette.set(removed.palette.subarray(out, out + count), start);
+            if (removed.canonicalEdits) this.canonicalEdits.set(removed.canonicalEdits.subarray(out * 16, (out + count) * 16), start * 16);
+            else if (this.canonicalEdits) {
+                for (let i = start; i < start + count; i++) {
+                    this.canonicalEdits.fill(0, i * 16, i * 16 + 16);
+                    for (let k = 0; k < 4; k++) this.canonicalEdits[i * 16 + k * 5] = 1;
+                }
+            }
             dstEnd = start;
         }
 
+        this.canonicalVersion++;
         this.count += total;
         this.numRemoved -= total;
         this.markDirty(runs[0], this.count);
@@ -322,11 +341,16 @@ class GaussianInstances {
                 this.sourceRow[at] = row;
                 this.flags[at] = 0;
                 this.palette[at] = 0;
+                if (this.canonicalEdits) {
+                    this.canonicalEdits.fill(0, at * 16, at * 16 + 16);
+                    for (let k = 0; k < 4; k++) this.canonicalEdits[at * 16 + k * 5] = 1;
+                }
                 at++;
             }
         }
 
         if (at > first) {
+            this.canonicalVersion++;
             this.count = at;
             this.numRemoved -= at - first;
             this.markDirty(first, at);

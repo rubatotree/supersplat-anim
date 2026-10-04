@@ -19,7 +19,7 @@ pose edit is conjugated through each Gaussian's rigid deformation.
 - [x] M2: validated BGS directory/ZIP/URL loading and CPU reference evaluation.
 - [x] M3: GPU deformation shared by render, sorting, picks, selection and bounds.
 - [x] M4: native PCUI animation controls, bind pose, binding colours/inspection.
-- [ ] M5: canonical affine edits, undo/redo, deletion and shared-layer operations.
+- [x] M5: canonical affine edits, undo/redo, deletion and shared-layer operations.
 - [ ] M6: animation resources and edit state in backwards-compatible ssproj.
 - [ ] M7: static posed snapshots, video synchronisation and BGS round trips.
 - [ ] M8: WebGPU integration/regression tests and 350k synthetic performance report.

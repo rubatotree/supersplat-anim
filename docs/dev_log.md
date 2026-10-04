@@ -76,3 +76,19 @@
 - Typecheck, focused lint, 402-key locale check and four WebGPU browser tests
   pass; the 640px control layout screenshot was visually inspected.
 - Quota checkpoint: 48% remaining. Next: canonical per-instance affine editing.
+
+## M5 — bound editing and instance lifecycle
+
+- Added lazy double-precision per-instance canonical affine storage, independent
+  of the 16-bit static transform palette. Untouched layers share the identity.
+- GPU drag preview applies U*D*C; gesture completion conjugates U through each
+  frozen D. History records actual instance indices and before/after matrices.
+- Tool/selection/history interaction freezes playback and invalidates pending
+  poses. Delete/restore, duplicate and separate maintain matrices and row mapping;
+  layers share immutable BGS assets and create separate provider lifetimes.
+- Empty-instance bounds now return a finite zero extent. Full covariance stays
+  affine in the projector; posed scalar/covariance inspection remains to finish.
+- 14 unit tests, typecheck, focused lint, debug build and 5 WebGPU tests pass,
+  including non-bind affine edit, later-time undo/redo, edited GPU/CPU matrix
+  comparison, shared duplication, deletion/restoration and separation/undo.
+- Quota checkpoint: 48% remaining. Next: project version 2 persistence.
