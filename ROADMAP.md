@@ -15,7 +15,7 @@ pose edit is conjugated through each Gaussian's rigid deformation.
 
 ## Milestones
 
-- [ ] M1: typed provider contract, seconds clock, loop/endpoints and tests.
+- [x] M1: typed provider contract, seconds clock, loop/endpoints and tests.
 - [ ] M2: validated BGS directory/ZIP/URL loading and CPU reference evaluation.
 - [ ] M3: GPU deformation shared by render, sorting, picks, selection and bounds.
 - [ ] M4: native PCUI animation controls, bind pose, binding colours/inspection.

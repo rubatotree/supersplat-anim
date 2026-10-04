@@ -38,7 +38,8 @@ class Ticks extends Container {
             const currentFrame = events.invoke('timeline.frame');
 
             const padding = 20;
-            const width = this.dom.getBoundingClientRect().width - padding * 2;
+            const width = Math.max(1, this.dom.getBoundingClientRect().width - padding * 2);
+            const frameSpan = Math.max(1, numFrames - 1);
 
             // round the smallest step that keeps labels ~50px apart up to the
             // 1/2/5 * 10^n series so labels land on round frame numbers
@@ -50,7 +51,7 @@ class Ticks extends Container {
             const tickStep = labelStep === 1 ? 0 : labelStep / (labelStep % 5 === 0 ? 5 : 2);
 
             const offsetFromFrame = (frame: number) => {
-                return padding + Math.floor(frame / (numFrames - 1) * width);
+                return padding + Math.floor(frame / frameSpan * width);
             };
 
             frameFromOffset = (offset: number) => {
@@ -278,7 +279,7 @@ class Ticks extends Container {
         });
 
         events.on('timeline.frame', (frame: number) => {
-            moveCursor(frame);
+            moveCursor?.(frame);
         });
 
         // rebuild when track keys change

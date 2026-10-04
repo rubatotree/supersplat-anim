@@ -1,224 +1,146 @@
-import { EventHandle } from 'playcanvas';
-
+import { PlaybackClock } from './animation/playback-clock';
 import { Events } from './events';
 
-/**
- * Register global timeline events.
- * The timeline manages playback state (frames, frameRate, current frame, playing).
- * Key management is delegated to individual animation tracks via track.* events.
- */
 const registerTimelineEvents = (events: Events) => {
+    const clock = new PlaybackClock();
     let frames = 180;
     let frameRate = 30;
     let smoothness = 1;
-    let loop = true;
-
-    // current frame
     let frame = 0;
 
-    const setFrame = (value: number) => {
-        if (value !== frame) {
-            frame = value;
+    const publishTime = (force = false) => {
+        const nextFrame = Math.min(frames - 1, Math.floor(clock.time * frameRate + 1e-9));
+        if (force || nextFrame !== frame) {
+            frame = nextFrame;
             events.fire('timeline.frame', frame);
         }
+        // Camera tracks consume fractional frames; providers consume seconds.
+        events.fire('timeline.time', Math.min(clock.time * frameRate, frames - 1));
+        events.fire('timeline.seconds', clock.time);
     };
-
-    events.function('timeline.frame', () => {
-        return frame;
-    });
-
-    events.on('timeline.setFrame', (value: number) => {
-        setFrame(value);
-    });
-
-    // frames
-
-    const setFrames = (value: number) => {
-        if (value !== frames) {
-            frames = value;
-            // clamp a stranded playhead before announcing the new length so
-            // 'timeline.frames' listeners observe a consistent frame/frames pair
-            if (frame >= frames) {
-                setFrame(frames - 1);
-            }
-            events.fire('timeline.frames', frames);
-        }
-    };
-
-    events.function('timeline.frames', () => {
-        return frames;
-    });
-
-    events.on('timeline.setFrames', (value: number) => {
-        setFrames(value);
-    });
-
-    // frame rate
-
-    const setFrameRate = (value: number) => {
-        if (value !== frameRate) {
-            frameRate = value;
-            events.fire('timeline.frameRate', frameRate);
-        }
-    };
-
-    events.function('timeline.frameRate', () => {
-        return frameRate;
-    });
-
-    events.on('timeline.setFrameRate', (value: number) => {
-        setFrameRate(value);
-    });
-
-    // smoothness
-
-    const setSmoothness = (value: number) => {
-        if (value !== smoothness) {
-            smoothness = value;
-            events.fire('timeline.smoothness', smoothness);
-        }
-    };
-
-    events.function('timeline.smoothness', () => {
-        return smoothness;
-    });
-
-    events.on('timeline.setSmoothness', (value: number) => {
-        setSmoothness(value);
-    });
-
-    // loop
-
-    const setLoop = (value: boolean) => {
-        if (value !== loop) {
-            loop = value;
-            events.fire('timeline.loop', loop);
-        }
-    };
-
-    events.function('timeline.loop', () => {
-        return loop;
-    });
-
-    events.on('timeline.setLoop', (value: boolean) => {
-        setLoop(value);
-    });
-
-    // anim controls
-    let animHandle: EventHandle = null;
-
-    const play = () => {
-        let time = frame;
-
-        // handle application update tick
-        animHandle = events.on('update', (dt: number) => {
-            time = (time + dt * frameRate) % frames;
-            setFrame(Math.floor(time));
-            events.fire('timeline.time', time);
-        });
-    };
-
-    const stop = () => {
-        animHandle.off();
-        animHandle = null;
-    };
-
-    // playing state
-    let playing = false;
-
     const setPlaying = (value: boolean) => {
-        if (value !== playing) {
-            playing = value;
-            events.fire('timeline.playing', playing);
-            if (playing) {
-                play();
-            } else {
-                stop();
-            }
+        if (value === clock.playing) return;
+        if (value && clock.time >= clock.duration) {
+            clock.seek(0);
+            publishTime();
         }
+        clock.playing = value;
+        events.fire('timeline.playing', value);
+    };
+    const setFrame = (value: number) => {
+        if (!Number.isFinite(value)) return;
+        clock.seek(Math.max(0, Math.min(frames - 1, Math.floor(value))) / frameRate);
+        publishTime();
+    };
+    const setFrames = (value: number) => {
+        if (!Number.isFinite(value) || value < 1) return;
+        frames = Math.floor(value);
+        clock.setDuration(frames / frameRate);
+        publishTime();
+        events.fire('timeline.frames', frames);
     };
 
-    events.function('timeline.playing', () => {
-        return playing;
+    events.function('timeline.frame', () => frame);
+    events.function('timeline.frames', () => frames);
+    events.function('timeline.frameRate', () => frameRate);
+    events.function('timeline.seconds', () => clock.time);
+    events.function('timeline.duration', () => clock.duration);
+    events.function('timeline.playbackRate', () => clock.rate);
+    events.function('timeline.smoothness', () => smoothness);
+    events.function('timeline.loop', () => clock.loop);
+    events.function('timeline.playing', () => clock.playing);
+
+    events.on('timeline.setFrame', setFrame);
+    events.on('timeline.setFrames', setFrames);
+    events.on('timeline.setSeconds', (value: number) => {
+        clock.seek(value);
+        publishTime();
+    });
+    events.on('timeline.setDuration', (value: number) => {
+        if (!Number.isFinite(value) || value <= 0) return;
+        clock.setDuration(value);
+        frames = Math.max(1, Math.ceil(value * frameRate));
+        publishTime();
+        events.fire('timeline.frames', frames);
+    });
+    events.on('timeline.setFrameRate', (value: number) => {
+        if (!Number.isFinite(value) || value <= 0) return;
+        frameRate = value;
+        clock.setDuration(frames / frameRate);
+        publishTime();
+        events.fire('timeline.frameRate', frameRate);
+    });
+    events.on('timeline.setPlaybackRate', (value: number) => {
+        if (!Number.isFinite(value) || value <= 0) return;
+        clock.rate = value;
+        events.fire('timeline.playbackRate', value);
+    });
+    events.on('timeline.setSmoothness', (value: number) => {
+        if (!Number.isFinite(value)) return;
+        smoothness = Math.max(0, Math.min(1, value));
+        events.fire('timeline.smoothness', smoothness);
+    });
+    events.on('timeline.setLoop', (value: boolean) => {
+        clock.loop = !!value;
+        events.fire('timeline.loop', clock.loop);
+    });
+    events.on('timeline.setPlaying', setPlaying);
+    events.on('timeline.togglePlay', () => setPlaying(!clock.playing));
+    events.on('update', (dt: number) => {
+        if (!clock.playing) return;
+        clock.advance(dt);
+        publishTime();
+        if (!clock.playing) events.fire('timeline.playing', false);
     });
 
-    events.on('timeline.setPlaying', (value: boolean) => {
-        setPlaying(value);
-    });
-
-    // shortcut handlers
-    events.on('timeline.togglePlay', () => {
-        setPlaying(!playing);
-    });
-
-    events.on('timeline.prevFrame', () => {
-        setFrame((frame - 1 + frames) % frames);
-    });
-
-    events.on('timeline.nextFrame', () => {
-        setFrame((frame + 1) % frames);
-    });
-
-    // Key navigation - delegates to active track's keys
-    const skipToKey = (dir: 'forward' | 'back') => {
-        // ignore keys beyond the end of the timeline - they don't play
-        const keys = (events.invoke('track.keys') as number[] ?? []).filter(k => k < frames);
-
-        if (keys.length > 0) {
-            const orderedKeys = keys.slice().sort((a, b) => a - b);
-            const l = orderedKeys.length;
-
-            const nextKeyIndex = orderedKeys.findIndex(k => (dir === 'back' ? k >= frame : k > frame));
-
-            if (nextKeyIndex === -1) {
-                setFrame(orderedKeys[dir === 'back' ? l - 1 : 0]);
-            } else {
-                setFrame(orderedKeys[dir === 'back' ? (nextKeyIndex + l - 1) % l : nextKeyIndex]);
-            }
-        } else {
-            setFrame(dir === 'back' ? 0 : frames - 1);
-        }
+    const step = (direction: number) => {
+        setPlaying(false);
+        const next = frame + direction;
+        setFrame(clock.loop ? (next + frames) % frames : next);
     };
-
-    events.on('timeline.prevKey', () => {
-        skipToKey('back');
-    });
-
-    events.on('timeline.nextKey', () => {
-        skipToKey('forward');
-    });
-
-    // clear timeline state when scene is cleared
+    events.on('timeline.prevFrame', () => step(-1));
+    events.on('timeline.nextFrame', () => step(1));
+    const skipToKey = (forward: boolean) => {
+        setPlaying(false);
+        const keys = (events.invoke('track.keys') as number[] ?? [])
+        .filter(k => k >= 0 && k < frames).sort((a, b) => a - b);
+        const next = forward ? keys.find(k => k > frame) : keys.slice().reverse().find(k => k < frame);
+        setFrame(next ?? (forward ? frames - 1 : 0));
+    };
+    events.on('timeline.prevKey', () => skipToKey(false));
+    events.on('timeline.nextKey', () => skipToKey(true));
     events.on('scene.clear', () => {
+        setPlaying(false);
+        clock.seek(0);
+        publishTime(true);
         events.fire('timeline.frames', frames);
     });
 
-    // Serialization - only global state, keys are owned by tracks
-
-    events.function('docSerialize.timeline', () => {
-        return {
-            frames,
-            frameRate,
-            frame,
-            smoothness,
-            loop
-        };
-    });
-
+    events.function('docSerialize.timeline', () => ({
+        frames,
+        frameRate,
+        frame,
+        smoothness,
+        loop: clock.loop,
+        seconds: clock.time,
+        duration: clock.duration,
+        playbackRate: clock.rate
+    }));
     events.function('docDeserialize.timeline', (data: any = {}) => {
-        // Set values
-        frames = data.frames ?? 180;
-        frameRate = data.frameRate ?? 30;
-        frame = data.frame ?? 0;
-        smoothness = data.smoothness ?? 1;
-        loop = data.loop ?? true;
-
-        // Fire events to update UI (always fire to ensure rebuild)
+        setPlaying(false);
+        frameRate = Number.isFinite(data.frameRate) && data.frameRate > 0 ? data.frameRate : 30;
+        frames = Number.isFinite(data.frames) && data.frames >= 1 ? Math.floor(data.frames) : 180;
+        smoothness = Number.isFinite(data.smoothness) ? Math.max(0, Math.min(1, data.smoothness)) : 1;
+        clock.loop = data.loop ?? true;
+        clock.rate = Number.isFinite(data.playbackRate) && data.playbackRate > 0 ? data.playbackRate : 1;
+        clock.setDuration(data.duration ?? frames / frameRate);
+        clock.seek(data.seconds ?? (data.frame ?? 0) / frameRate);
         events.fire('timeline.frames', frames);
         events.fire('timeline.frameRate', frameRate);
-        events.fire('timeline.frame', frame);
         events.fire('timeline.smoothness', smoothness);
-        events.fire('timeline.loop', loop);
+        events.fire('timeline.loop', clock.loop);
+        events.fire('timeline.playbackRate', clock.rate);
+        publishTime(true);
     });
 };
 

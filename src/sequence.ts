@@ -103,7 +103,7 @@ const registerSequenceEvents = (events: Events, scene: Scene) => {
             splat = null;
         }
 
-        events.fire('timeline.frames', source.frameCount);
+        events.fire('timeline.setFrames', source.frameCount);
     };
 
     const setFrame = async (frame: number) => {
