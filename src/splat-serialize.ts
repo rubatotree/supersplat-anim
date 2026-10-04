@@ -37,7 +37,10 @@ import {
 } from 'playcanvas';
 
 import { version } from '../package.json';
-import { ColorGrade, createGradeTerms, dcDecode, dcEncode, sigmoid } from './color-grade';
+import { covarianceAxes } from './animation/covariance';
+import { gaussianCovariance, transformCovariance } from './animation/math';
+import { dcDecode, dcEncode, sigmoid } from './color-grade';
+import { ColorGradeCache } from './color-grade-cache';
 import type { EditorSplatResource } from './editor-splat-resource';
 import { Events } from './events';
 import { groupInstancesByChunk } from './gaussian-instances';
@@ -83,14 +86,18 @@ class SplatTransformCache {
         const tmpMat3 = new Mat3();
         const tmpQuat = new Quat();
 
+        let animatedSHRot: SHRotation | null = null;
+
         // `index` is the instance being exported; the cache itself is keyed by
         // palette entry, which is what makes it a cache
         const getTransform = (index: number) => {
             const transformIndex = instances.transformIndex(index);
-            let result = transforms.get(transformIndex);
+            const key = splat.animation ? index : transformIndex;
+            let result = transforms.get(key);
             if (!result) {
+                if (splat.animation) transforms.clear();
                 result = { transformIndex, mat: null, rot: null, scale: null, shRot: null };
-                transforms.set(transformIndex, result);
+                transforms.set(key, result);
             }
             return result;
         };
@@ -107,8 +114,13 @@ class SplatTransformCache {
                     mat.mul2(mat, splat.entity.getWorldTransform());
                 }
 
+                if (splat.animation) {
+                    splat.animation.readMatrix(index, tmpMat);
+                    mat.mul2(mat, tmpMat);
+                }
+
                 // combine with transform palette matrix
-                if (transform.transformIndex > 0) {
+                if (!splat.animation && transform.transformIndex > 0) {
                     splat.transformPalette.getTransform(transform.transformIndex, tmpMat);
                     mat.mul2(mat, tmpMat);
                 }
@@ -142,39 +154,28 @@ class SplatTransformCache {
         };
 
         this.getSHRot = (index: number) => {
+            if (splat.animation && animatedSHRot) return animatedSHRot;
             const transform = getTransform(index);
 
             if (!transform.shRot) {
-                tmpQuat.setFromMat4(this.getMat(index));
-                tmpMat3.setFromQuat(tmpQuat);
+                if (splat.animation) {
+                    tmpMat.setIdentity();
+                    if (!keepWorldTransform) {
+                        tmpMat.setFromEulerAngles(0, 0, -180);
+                        tmpMat.mul2(tmpMat, splat.entity.getWorldTransform());
+                    }
+                    tmpQuat.setFromMat4(tmpMat);
+                } else tmpQuat.setFromMat4(this.getMat(index));
+                if (splat.animation) {
+                    const m = tmpMat.data;
+                    const scale = Math.hypot(m[0], m[1], m[2]);
+                    tmpMat3.data.set([m[0] / scale, m[1] / scale, m[2] / scale, m[4] / scale, m[5] / scale, m[6] / scale, m[8] / scale, m[9] / scale, m[10] / scale]);
+                } else tmpMat3.setFromQuat(tmpQuat);
                 transform.shRot = new SHRotation(tmpMat3);
+                if (splat.animation) animatedSHRot = transform.shRot;
             }
 
             return transform.shRot;
-        };
-    }
-}
-
-// Resolve an instance's baked colour grade on demand and cache it, the colour
-// analogue of SplatTransformCache. Keyed by colour palette entry, so a scene
-// where every gaussian shares one grade costs one ColorGrade.
-class ColorGradeCache {
-    get: (index: number) => ColorGrade;
-
-    constructor(splat: Splat) {
-        const grades = new Map<number, ColorGrade>();
-        const { instances } = splat;
-        const entry = createGradeTerms();
-
-        this.get = (index: number) => {
-            const colorIndex = instances.colorIndex(index);
-            let result = grades.get(colorIndex);
-            if (!result) {
-                splat.colorPalette.getEntry(colorIndex, entry);
-                result = new ColorGrade(entry);
-                grades.set(colorIndex, result);
-            }
-            return result;
         };
     }
 }
@@ -452,16 +453,25 @@ class SuperSplatChunkSource implements ChunkSource {
                 if (dstGeometric) {
                     const src = i * 8;
                     const dst = (outputOffset + i) * 8;
-                    rotationValue.set(srcGeometric[src + 1], srcGeometric[src + 2], srcGeometric[src + 3], srcGeometric[src]);
-                    rotationValue.mul2(transform.getRot(instance), rotationValue);
-                    dstGeometric[dst] = rotationValue.w;
-                    dstGeometric[dst + 1] = rotationValue.x;
-                    dstGeometric[dst + 2] = rotationValue.y;
-                    dstGeometric[dst + 3] = rotationValue.z;
-                    const scale = transform.getScale(instance);
-                    dstGeometric[dst + 4] = Math.log(Math.exp(srcGeometric[src + 4]) * scale.x);
-                    dstGeometric[dst + 5] = Math.log(Math.exp(srcGeometric[src + 5]) * scale.y);
-                    dstGeometric[dst + 6] = Math.log(Math.exp(srcGeometric[src + 6]) * scale.z);
+                    if (splat.animation) {
+                        const covariance = gaussianCovariance([srcGeometric[src + 1], srcGeometric[src + 2], srcGeometric[src + 3], srcGeometric[src]],
+                            [srcGeometric[src + 4], srcGeometric[src + 5], srcGeometric[src + 6]]);
+                        const posed = new Float64Array(9);
+                        transformCovariance(transform.getMat(instance).data, covariance, posed);
+                        const axes = covarianceAxes(posed);
+                        dstGeometric.set([axes.rotation[3], ...axes.rotation.slice(0, 3), ...axes.logScales], dst);
+                    } else {
+                        rotationValue.set(srcGeometric[src + 1], srcGeometric[src + 2], srcGeometric[src + 3], srcGeometric[src]);
+                        rotationValue.mul2(transform.getRot(instance), rotationValue);
+                        dstGeometric[dst] = rotationValue.w;
+                        dstGeometric[dst + 1] = rotationValue.x;
+                        dstGeometric[dst + 2] = rotationValue.y;
+                        dstGeometric[dst + 3] = rotationValue.z;
+                        const scale = transform.getScale(instance);
+                        dstGeometric[dst + 4] = Math.log(Math.exp(srcGeometric[src + 4]) * scale.x);
+                        dstGeometric[dst + 5] = Math.log(Math.exp(srcGeometric[src + 5]) * scale.y);
+                        dstGeometric[dst + 6] = Math.log(Math.exp(srcGeometric[src + 6]) * scale.z);
+                    }
                     const grade = gradeCache.get(instance);
                     dstGeometric[dst + 7] = grade.hasTransparency ?
                         grade.applyOpacity(srcGeometric[src + 7]) : srcGeometric[src + 7];
@@ -551,6 +561,20 @@ class SuperSplatChunkSource implements ChunkSource {
  * passes the export filter.
  */
 const createExportSource = async (splats: Splat[], settings: SerializeSettings): Promise<{ source: ChunkSource, pool: ChunkDataPool } | null> => {
+    for (const splat of splats) {
+        if (splat.animation) {
+            if (!splat.animation.frame) throw new Error('Animation frame is not ready');
+            if (splat.resource.shBands > 0 && (settings.maxSHBands ?? 3) > 0) {
+                const matrix = splat.entity.getWorldTransform().data;
+                const lengths = [0, 4, 8].map(at => Math.hypot(matrix[at], matrix[at + 1], matrix[at + 2]));
+                const largest = Math.max(...lengths);
+                const dots = [[0, 4], [0, 8], [4, 8]].map(([a, b]) => matrix[a] * matrix[b] + matrix[a + 1] * matrix[b + 1] + matrix[a + 2] * matrix[b + 2]);
+                if (!(largest > 0) || Math.max(...lengths) - Math.min(...lengths) > largest * 1e-6 || dots.some(dot => Math.abs(dot) > largest * largest * 1e-6)) {
+                    throw new Error('A static snapshot cannot faithfully bake a non-uniform layer transform into scene-frame SH. Save ssproj or export BGS in asset coordinates.');
+                }
+            }
+        }
+    }
     const source = await SuperSplatChunkSource.create(splats, settings);
     if (source.meta.numGaussians === 0) {
         return null;

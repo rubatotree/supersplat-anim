@@ -400,5 +400,8 @@
     "animation.asset-axes": "资产坐标轴：+X 前 · +Y 左 · +Z 上（米）",
     "animation.sample": "样本 {{sample}} · 来源帧 {{source}}",
     "animation.fallbacks": "{{count}} 次 DQ 回退",
-    "animation.inspect-one": "选择单个高斯以查看稳定 ID 和四槽绑定权重。"
+    "animation.inspect-one": "选择单个高斯以查看稳定 ID 和四槽绑定权重。",
+    "animation.export-bgs": "绑定高斯场景（.bgs.zip）",
+    "animation.snapshot-note": "动画图层将导出为当前求值姿态的静态快照。查看器的相机动画不包含高斯运动。",
+    "animation.bgs-export-note": "导出选中动画图层、绑定及全部片段，使用标准资产坐标。编辑器中的图层摆放由 ssproj 保存，不会烘焙到 BGS。"
 }

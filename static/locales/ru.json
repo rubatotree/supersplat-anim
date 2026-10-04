@@ -400,5 +400,8 @@
     "animation.asset-axes": "Asset axes: +X forward · +Y left · +Z up (meters)",
     "animation.sample": "Sample {{sample}} · source frame {{source}}",
     "animation.fallbacks": "{{count}} DQ fallbacks",
-    "animation.inspect-one": "Select one Gaussian to inspect its stable ID and four binding slots."
+    "animation.inspect-one": "Select one Gaussian to inspect its stable ID and four binding slots.",
+    "animation.export-bgs": "Bound Gaussian Scene (.bgs.zip)",
+    "animation.snapshot-note": "Animated layers export as a static snapshot of the current evaluated pose. Camera animation in a viewer does not include Gaussian motion.",
+    "animation.bgs-export-note": "Exports the selected animation layer, bindings and all clips in standard asset coordinates. Editor layer placement is saved by ssproj and is not baked into BGS."
 }

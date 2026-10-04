@@ -156,6 +156,8 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
         let savedOrtho = false;
 
         try {
+            events.fire('animation.freeze');
+            await events.invoke('animation.prepare', events.invoke('timeline.seconds'));
             const { width, height, transparentBg, showDebug, format, quality, projection, levelHorizon } = imageSettings;
             const is360 = projection === 'equirect';
 

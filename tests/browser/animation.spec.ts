@@ -1,9 +1,11 @@
 import { expect, test } from '@playwright/test';
 
+import { gaussianCovariance, transformCovariance } from '../../src/animation/math';
+
 test('shared GPU pose agrees with CPU and survives rendering and picking', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
-    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    page.on('console', message => { if (message.type() === 'error') { errors.push(message.text()); console.error(message.text()); } });
     await page.goto('/?load=/fixtures/conformance/scene.json');
     await page.waitForFunction(() => (window as any).scene?.elements.some((s: any) => s.animation?.frame));
     const results = await page.evaluate(async () => {
@@ -42,7 +44,7 @@ test('real 350k BGS loads and evaluates both experimental clips on WebGPU', asyn
     test.skip(process.env.BGS_SKIP_REAL === '1', 'Real sample explicitly disabled');
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
-    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    page.on('console', message => { if (message.type() === 'error') { errors.push(message.text()); console.error(message.text()); } });
     await page.goto('/?load=/fixtures/real/scene.json');
     await page.waitForFunction(() => (window as any).scene?.elements.some((s: any) => s.animation?.frame));
     const result = await page.evaluate(async () => {
@@ -75,7 +77,7 @@ test('real 350k BGS loads and evaluates both experimental clips on WebGPU', asyn
 test('static PLY remains renderable through the shared shader path', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
-    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    page.on('console', message => { if (message.type() === 'error') { errors.push(message.text()); console.error(message.text()); } });
     await page.goto('/?load=/fixtures/conformance/gaussians.ply');
     await page.waitForFunction(() => (window as any).scene?.elements.some((s: any) => s.instances?.count === 5));
     await page.waitForTimeout(1000);
@@ -85,7 +87,7 @@ test('static PLY remains renderable through the shared shader path', async ({ pa
 test('animation controls expose bind pose, colors, source frames and narrow layout', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
-    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    page.on('console', message => { if (message.type() === 'error') { errors.push(message.text()); console.error(message.text()); } });
     await page.goto('/?load=/fixtures/conformance/scene.json');
     await expect(page.locator('#animation-controls')).toBeVisible();
     await page.locator('#animation-bind').click();
@@ -103,7 +105,7 @@ test('animation controls expose bind pose, colors, source frames and narrow layo
 test('canonical edits retain bindings through playback, undo, deletion and layer copies', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
-    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    page.on('console', message => { if (message.type() === 'error') { errors.push(message.text()); console.error(message.text()); } });
     await page.goto('/?load=/fixtures/conformance/scene.json');
     await page.waitForFunction(() => (window as any).scene?.elements.some((s: any) => s.animation?.frame));
     const result = await page.evaluate(async () => {
@@ -176,7 +178,7 @@ test('canonical edits retain bindings through playback, undo, deletion and layer
 test('ssproj round trip preserves animation, shared layers, edits and timeline', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
-    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    page.on('console', message => { if (message.type() === 'error') { errors.push(message.text()); console.error(message.text()); } });
     await page.goto('/?load=/fixtures/conformance/scene.json');
     await page.waitForFunction(() => (window as any).scene?.elements.some((s: any) => s.animation?.frame));
     const before = await page.evaluate(async () => {
@@ -228,5 +230,86 @@ test('ssproj round trip preserves animation, shared layers, edits and timeline',
     expect(after.rate).toBe(1.5);
     expect(after.colors).toBeTruthy();
     expect(after.ids).toEqual(before.ids);
+    expect(errors).toEqual([]);
+});
+
+test('static posed snapshot and standard BGS export re-import correctly', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('console', message => { if (message.type() === 'error') { errors.push(message.text()); console.error(message.text()); } });
+    await page.goto('/?load=/fixtures/conformance/scene.json');
+    await page.waitForFunction(() => (window as any).scene?.elements.some((s: any) => s.animation?.frame));
+    const expected = await page.evaluate(async () => {
+        const events = (window as any).scene.events;
+        events.fire('timeline.setSeconds', 0.7);
+        await events.invoke('animation.prepare', 0.7);
+        events.fire('select.all');
+        await events.invoke('queue', () => {});
+        const pivot = events.invoke('pivot');
+        const transform = pivot.transform.clone();
+        transform.position.z += 0.2;
+        transform.scale.set(0.6, 1.2, 0.8);
+        pivot.start(); pivot.move(transform); pivot.end();
+        await events.invoke('queue', () => {});
+        const splat = events.invoke('selection');
+        const g = splat.animation.provider.data.gaussians;
+        const matrix = splat.entity.getWorldTransform().clone();
+        const point = pivot.transform.position.clone();
+        const result: any[] = [];
+        for (let i = 0; i < splat.instances.count; i++) {
+            const row = splat.animation.sourceRows[splat.instances.sourceRow[i]];
+            splat.animation.readMatrix(i, matrix);
+            matrix.mul2(splat.entity.getWorldTransform(), matrix);
+            point.set(...g.positions.subarray(row * 3, row * 3 + 3));
+            matrix.transformPoint(point, point);
+            result.push({ position: [point.x, point.y, point.z], matrix: Array.from(matrix.data),
+                rotation: Array.from(g.rotations.subarray(row * 4, row * 4 + 4)), scales: Array.from(g.logScales.subarray(row * 3, row * 3 + 3)) });
+        }
+        return result;
+    });
+    for (const [type, filename] of [['ply', 'snapshot.ply'], ['bgs', 'roundtrip.bgs.zip']]) {
+        const downloadPromise = page.waitForEvent('download');
+        const written = await page.evaluate(({ type, filename }) => (window as any).scene.events.invoke('scene.write', type,
+            { filename, splatIdx: 'all', serializeSettings: {} }), { type, filename });
+        expect(written).toBeTruthy();
+        await (await downloadPromise).saveAs(`test-results/${filename}`);
+    }
+    const restored = await page.evaluate(async () => {
+        const scene = (window as any).scene;
+        scene.events.functions.set('showPopup', async (options: any) => { console.error('Import popup', JSON.stringify(options)); return { action: 'ok' }; });
+        const imports: any[] = [];
+        for (const filename of ['snapshot.ply', 'roundtrip.bgs.zip']) {
+            const blob = await (await fetch(`/fixtures/output/${filename}`)).blob();
+            const layers = await scene.events.invoke('import', [{ filename, contents: new File([blob], filename) }]);
+            imports.push(layers[0]);
+        }
+        const staticLayer = imports[0];
+        const source = staticLayer.resource.source;
+        const pool = staticLayer.resource.sourcePool;
+        const position = pool.acquire('position', source.meta.layouts.position, source.meta.numGaussians);
+        const geometric = pool.acquire('geometric', source.meta.layouts.geometric, source.meta.numGaussians);
+        await source.read({ chunkIndex: 0, position, geometric });
+        const result = { positions: Array.from(new Float32Array(position.data).subarray(0, source.meta.numGaussians * 3)), geometry: Array.from(new Float32Array(geometric.data).subarray(0, source.meta.numGaussians * 8)),
+            world: Array.from(staticLayer.entity.getWorldTransform().data), count: imports[1].instances.count,
+            clips: imports[1].animation.provider.asset.clips.length, ids: Array.from(imports[1].animation.provider.data.gaussians.sourceIds) };
+        position.release(); geometric.release();
+        return result;
+    });
+    expect(restored.count).toBe(5);
+    expect(restored.clips).toBe(1);
+    for (let i = 0; i < 5; i++) {
+        const raw = restored.positions.slice(i * 3, i * 3 + 3) as number[];
+        const m = restored.world as number[];
+        const world = [0, 1, 2].map(axis => m[axis] * raw[0] + m[4 + axis] * raw[1] + m[8 + axis] * raw[2] + m[12 + axis]);
+        const original = expected.slice().sort((a, b) => a.position.reduce((sum: number, value: number, k: number) => sum + (value - world[k]) ** 2, 0) -
+            b.position.reduce((sum: number, value: number, k: number) => sum + (value - world[k]) ** 2, 0))[0];
+        world.forEach((value, k) => expect(value).toBeCloseTo(original.position[k], 5));
+        const geometry = restored.geometry.slice(i * 8, i * 8 + 8) as number[];
+        const actual = new Float64Array(9);
+        transformCovariance(m, gaussianCovariance([geometry[1], geometry[2], geometry[3], geometry[0]], geometry.slice(4, 7)), actual);
+        const target = new Float64Array(9);
+        transformCovariance(original.matrix, gaussianCovariance(original.rotation, original.scales), target);
+        actual.forEach((value, k) => expect(value).toBeCloseTo(target[k], 5));
+    }
     expect(errors).toEqual([]);
 });

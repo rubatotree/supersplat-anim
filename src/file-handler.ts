@@ -1,5 +1,6 @@
 import { path, Quat, Vec3 } from 'playcanvas';
 
+import { writeBgs } from './animation/bgs-export';
 import { loadBgs, loadBgsZip } from './animation/bgs-loader';
 import type { Pose } from './camera-poses';
 import { CreateDropHandler, resolveHandleFiles } from './drop-handler';
@@ -18,7 +19,7 @@ import { i18n } from './ui/localization';
 // ts compiler and vscode find this type, but eslint does not
 type FilePickerAcceptType = unknown;
 
-type FileType = 'ply' | 'compressedPly' | 'splat' | 'sog' | 'spz' | 'htmlViewer' | 'packageViewer';
+type FileType = 'ply' | 'compressedPly' | 'splat' | 'sog' | 'spz' | 'htmlViewer' | 'packageViewer' | 'bgs';
 
 const filePickerTypes: { [key: string]: FilePickerAcceptType } = {
     'ply': {
@@ -678,10 +679,11 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
         const options = buildExportOptions(events, exportType, choices);
 
         const fileType: FileType =
-            (exportType === 'viewer') ? (options.viewerExportSettings!.type === 'zip' ? 'packageViewer' : 'htmlViewer') :
-                (exportType === 'ply') ? (options.compressedPly ? 'compressedPly' : 'ply') :
-                    (exportType === 'sog') ? 'sog' :
-                        (exportType === 'spz') ? 'spz' : 'splat';
+            (exportType === 'bgs') ? 'bgs' :
+                (exportType === 'viewer') ? (options.viewerExportSettings!.type === 'zip' ? 'packageViewer' : 'htmlViewer') :
+                    (exportType === 'ply') ? (options.compressedPly ? 'compressedPly' : 'ply') :
+                        (exportType === 'sog') ? 'sog' :
+                            (exportType === 'spz') ? 'spz' : 'splat';
 
         if (!fileTarget) {
             return await events.invoke('scene.write', fileType, options) as boolean;
@@ -726,7 +728,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
             await exportSettingsReady;
             const directory = hasFilePicker ? await events.invoke('scene.getExportDirectory') : undefined;
 
-            const result = await events.invoke('show.exportPopup', exportType, splats.map(s => s.name), { directory }) as ExportDialogResult;
+            const result = await events.invoke('show.exportPopup', exportType, exportType === 'bgs' ? [events.invoke('selection')?.name ?? 'animation'] : splats.map(s => s.name), { directory }) as ExportDialogResult;
 
             // return if user cancelled
             if (!result) {
@@ -776,6 +778,8 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
                 setTimeout(resolve);
             });
 
+            events.fire('animation.freeze');
+            await events.invoke('animation.prepare', events.invoke('timeline.seconds'));
             const { filename, splatIdx, serializeSettings, viewerExportSettings } = options;
 
             // Create FileSystem for output
@@ -784,6 +788,9 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
             const splats = splatIdx === 'all' ? getSplats() : [getSplats()[splatIdx]];
 
             switch (fileType) {
+                case 'bgs':
+                    await writeBgs(events.invoke('selection'), filename, fs);
+                    break;
                 case 'ply':
                     await writeSplatFile(splats, serializeSettings, 'ply', 'output.ply', {}, fs);
                     break;

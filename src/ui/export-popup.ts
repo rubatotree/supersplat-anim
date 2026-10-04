@@ -23,6 +23,7 @@ const removeKnownExtension = (filename: string) => {
     // remove known extensions (ordered from longest to shortest for compound extensions)
     const knownExtensions = [
         '.compressed.ply',
+        '.bgs.zip',
         '.ksplat',
         '.splat',
         '.html',
@@ -94,6 +95,11 @@ class ExportPopup extends Container {
         // content
 
         const content = new Container({ id: 'content' });
+        const animationNote = new Label({ id: 'animation-export-note', hidden: true });
+        animationNote.dom.style.whiteSpace = 'normal';
+        content.append(animationNote);
+        let animationNoteKey = 'animation.snapshot-note';
+        i18n.bindText(animationNote, () => i18n.t(animationNoteKey));
 
         // type
 
@@ -516,6 +522,7 @@ class ExportPopup extends Container {
             const activeRows: Container[] = {
                 ply: [compressRow, bandsRow],
                 splat: [],
+                bgs: [],
                 ssproj: [],
                 sog: [bandsRow, iterationsRow],
                 spz: [bandsRow, spzVersionRow],
@@ -540,6 +547,9 @@ class ExportPopup extends Container {
             // filename
             filenameEntry.value = splatNames[0];
             switch (exportType) {
+                case 'bgs':
+                    updateExtension('.bgs.zip');
+                    break;
                 case 'ply':
                     updateExtension('.ply');
                     break;
@@ -583,6 +593,9 @@ class ExportPopup extends Container {
             const hasPoses = (events.invoke('camera.poses') as Pose[]).some(p => p.frame >= 0 && p.frame < frames);
 
             reset(exportType, splatNames, hasPoses);
+            animationNote.hidden = exportType === 'ssproj' || !events.invoke('animation.layers').length;
+            animationNoteKey = exportType === 'bgs' ? 'animation.bgs-export-note' : 'animation.snapshot-note';
+            animationNote.text = i18n.t(animationNoteKey);
 
             directory = settings.directory;
             locationRow.hidden = !hasFilePicker;

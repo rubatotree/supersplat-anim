@@ -107,3 +107,25 @@
   Browser save/download/reopen preserved shared assets, edits, stable IDs,
   timeline time/rate and binding preview state.
 - Quota checkpoint: 48% remaining. Next: posed exports and standard BGS round trip.
+
+## M7 — posed snapshots and standard BGS export
+
+- Static writers now resolve animated per-instance matrices and diagonalize
+  full affine covariance. SH rebase uses only the scene/layer coordinate change,
+  shared once per layer; animation/canonical edits do not rotate scene-frame SH.
+- Image and video preparation wait for the requested pose. Export dialog labels
+  static snapshots; viewer camera tracks do not imply Gaussian animation.
+- Added selected-layer .bgs.zip export in asset coordinates, preserving typed
+  unknown properties, IDs, all binding slots, nodes, clips and provenance.
+  Generated files get a new asset ID, new validation.json and SHA-256 manifest.
+- Actual output is reloaded and checked: all IDs/bindings/untouched properties/SH,
+  node/clip equality and up to 256 rows at three times in every clip. Quality
+  validation is explicitly not claimed. Unsupported placement baking and singular
+  BGS covariances fail; static SH snapshots reject non-uniform/sheared layer placement.
+- 17 unit tests, typecheck, focused lint, 405-key locale check, debug build and
+  7 WebGPU tests passed. Snapshot re-import means/covariances match the edited pose.
+  The exported BGS also passed the independent supplied validate.py with manifest.
+- Test readback arrays were bounded to live rows; re-running the snapshot test
+  took 4.2s after avoiding serialization of oversized pooled buffers.
+- Quota checkpoint: 47% remaining. Next: complete posed data inspection, regression
+  coverage, GPU identity/performance and real-scene acceptance evidence.

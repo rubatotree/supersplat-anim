@@ -3,7 +3,7 @@ import { Events } from './events';
 import type { WriteTarget } from './io';
 import { AnimTrack, defaultPostEffectSettings, ExperienceSettings, SerializeSettings, ViewerExportSettings } from './splat-serialize';
 
-type ExportType = 'ply' | 'splat' | 'sog' | 'spz' | 'viewer';
+type ExportType = 'ply' | 'splat' | 'sog' | 'spz' | 'viewer' | 'bgs';
 
 // The export dialog's choices. Everything else in SceneExportOptions is read
 // from the scene when the export runs, so repeating an export with the same

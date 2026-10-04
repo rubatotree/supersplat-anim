@@ -198,6 +198,10 @@ class Menu extends Container {
             isEnabled: () => !events.invoke('scene.empty'),
             onSelect: () => events.invoke('scene.export', 'splat')
         }, {
+            text: () => i18n.t('animation.export-bgs', { ellipsis: true }),
+            isEnabled: () => !!events.invoke('selection')?.animation,
+            onSelect: () => events.invoke('scene.export', 'bgs')
+        }, {
             // separator
         }, {
             text: () => i18n.t('menu.file.export.viewer', { ellipsis: true }),
