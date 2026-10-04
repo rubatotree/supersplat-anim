@@ -239,6 +239,7 @@ class MappedReadFileSystem implements LoadProgressFileSystem {
 }
 
 export {
+    BlobReadFileSystem,
     BlobReadSource,
     MappedReadFileSystem,
     hasLoadProgress,

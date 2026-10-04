@@ -468,6 +468,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
                 const prepareFrame = async (frameTime: number, skipSort = false): Promise<Splat | null> => {
                     // Fire timeline.time for camera animation interpolation
                     events.fire('timeline.time', frameTime);
+                    await events.invoke('animation.prepare', frameTime / events.invoke('timeline.frameRate'));
 
                     // Wait for PLY sequence to load the frame if present
                     const newSplat = await events.invoke('plysequence.setFrameAsync', Math.floor(frameTime)) as Splat | null;

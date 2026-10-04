@@ -31,6 +31,7 @@ import {
 
 import { BufferPool } from './buffer-pool';
 import { maskByteSize } from './histogram-config';
+import { instanceGeometryWGSL } from '../shaders/instance-geometry-chunk';
 import { indexToUvWGSL, paletteMatrixWGSL } from '../shaders/palette-chunk';
 import { Splat } from '../splat';
 
@@ -96,10 +97,12 @@ struct Uniforms {
 @group(0) @binding(4) var transformB: texture_2d<f32>;
 @group(0) @binding(5) var transformPalette: texture_2d<f32>;
 @group(0) @binding(6) var maskTexture: texture_2d<f32>;
-@group(0) @binding(7) var<uniform> uniforms: Uniforms;
-@group(0) @binding(8) var<storage, read> pathPoints: array<vec4f>;
+@group(0) @binding(7) var posedTransforms: texture_2d<f32>;
+@group(0) @binding(8) var<uniform> uniforms: Uniforms;
+@group(0) @binding(9) var<storage, read> pathPoints: array<vec4f>;
 
 ${paletteMatrixWGSL}
+${instanceGeometryWGSL}
 ${indexToUvWGSL('sourceCoord', 'uniforms.sourceWidth')}
 
 // does the splat at world touch the sphere at closest? At footprint 0 the
@@ -178,7 +181,7 @@ fn intersects(index: u32) -> bool {
     let a = textureLoad(transformA, uv, 0);
     let center = bitcast<vec3f>(a.xyz);
     let paletteIndex = instancePalette[index] & 0xffffu;
-    let toWorld = uniforms.model * paletteMatrix(paletteIndex);
+    let toWorld = uniforms.model * instanceMatrix(index, paletteIndex);
     let world = (toWorld * vec4f(center, 1.0)).xyz;
     // the on-screen stroke mask gates the sphere brush only at footprint 0:
     // with a footprint, splats whose extent grazes the brushed volume count
@@ -298,6 +301,7 @@ class Intersect {
             new BindTextureFormat('transformB', SHADERSTAGE_COMPUTE, undefined, SAMPLETYPE_UNFILTERABLE_FLOAT, false),
             new BindTextureFormat('transformPalette', SHADERSTAGE_COMPUTE, undefined, SAMPLETYPE_UNFILTERABLE_FLOAT, false),
             new BindTextureFormat('maskTexture', SHADERSTAGE_COMPUTE, undefined, SAMPLETYPE_FLOAT, false),
+            new BindTextureFormat('posedTransforms', SHADERSTAGE_COMPUTE, undefined, SAMPLETYPE_UNFILTERABLE_FLOAT, false),
             new BindUniformBufferFormat('uniforms', SHADERSTAGE_COMPUTE),
             new BindStorageBufferFormat('pathPoints', SHADERSTAGE_COMPUTE, true)
         ]);
@@ -367,6 +371,7 @@ class Intersect {
         this.compute.setParameter('instancePalette', splat.instances.instancePalette);
         this.compute.setParameter('transformA', transformA);
         this.compute.setParameter('transformB', splat.resource.getTexture('transformB'));
+        this.compute.setParameter('posedTransforms', splat.posedTransforms);
         this.compute.setParameter('transformPalette', splat.transformPalette.texture);
         this.compute.setParameter('maskTexture', mask ?? this.dummyTexture);
         this.compute.setParameter('pathPoints', this.pathPoints);

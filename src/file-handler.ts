@@ -1,5 +1,6 @@
 import { path, Quat, Vec3 } from 'playcanvas';
 
+import { loadBgs, loadBgsZip } from './animation/bgs-loader';
 import type { Pose } from './camera-poses';
 import { CreateDropHandler, resolveHandleFiles } from './drop-handler';
 import { ElementType } from './element';
@@ -7,6 +8,7 @@ import { Events } from './events';
 import { buildExportOptions, ExportChoices, ExportDialogResult, ExportType, SceneExportOptions } from './export-options';
 import { ExportSettings, loadExportSettings, saveExportSettings } from './export-settings';
 import { BlobReadSource, BrowserFileSystem, MappedReadFileSystem, pickWriteTarget, sourcesOf, WriteTarget } from './io';
+import { BlobReadFileSystem } from './io/read/file-systems';
 import { recentImports, RecentImport } from './recent-files';
 import { Scene } from './scene';
 import { Splat } from './splat';
@@ -89,7 +91,8 @@ const allImportTypes = {
         'application/x-gaussian-splat': ['.json', '.sog', '.splat', '.ksplat', '.spz'],
         'image/webp': ['.webp'],
         'application/x-lcc': ['.lcc', '.lcc2', '.bin'],
-        'text/plain': ['.txt']
+        'text/plain': ['.txt'],
+        'application/zip': ['.zip']
     }
 };
 
@@ -333,6 +336,34 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
         const filenames = files.map(f => f.filename.toLowerCase());
 
         const result: Splat[] = [];
+        const sceneIndex = filenames.findIndex(name => name === 'scene.json' || name.endsWith('/scene.json'));
+        if (sceneIndex >= 0 || (files.length === 1 && filenames[0].endsWith('.zip'))) {
+            try {
+                let data;
+                if (sceneIndex < 0) {
+                    const file = files[0];
+                    const blob = file.contents ?? await (await fetch(file.url)).blob();
+                    data = await loadBgsZip(new BlobReadSource(blob));
+                } else {
+                    const main = files[sceneIndex];
+                    const local = new BlobReadFileSystem();
+                    files.forEach((file) => {
+                        if (file.contents) local.set(file.filename, file.contents, file.handle);
+                    });
+                    const baseUrl = main.url ? new URL('.', new URL(main.url, location.href)).href : null;
+                    const urls = baseUrl ? new MappedReadFileSystem(baseUrl) : null;
+                    const fileSystem = { createSource: (name: string) => (local.get(name) ? local.createSource(name) :
+                        urls ? urls.createSource(name) : Promise.reject(new Error(`Missing BGS resource: ${name}`))) };
+                    data = await loadBgs(fileSystem, main.contents ? main.filename : main.filename.split('/').pop());
+                }
+                result.push(await events.invoke('animation.import', data));
+                recordImports(files);
+                return result;
+            } catch (error) {
+                await showLoadError(error.message ?? String(error), files[sceneIndex < 0 ? 0 : sceneIndex].filename);
+                return result;
+            }
+        }
 
         if (isPlySequence(filenames)) {
             // handle ply sequence
@@ -392,7 +423,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
         fileSelector = document.createElement('input');
         fileSelector.setAttribute('id', 'file-selector');
         fileSelector.setAttribute('type', 'file');
-        fileSelector.setAttribute('accept', '.ply,.splat,meta.json,.json,.webp,.ssproj,.sog,.lcc,.lcc2,.bin,.txt,.ksplat,.spz');
+        fileSelector.setAttribute('accept', '.ply,.splat,meta.json,.json,.webp,.ssproj,.sog,.lcc,.lcc2,.bin,.txt,.ksplat,.spz,.zip');
         fileSelector.setAttribute('multiple', 'true');
 
         fileSelector.onchange = () => {

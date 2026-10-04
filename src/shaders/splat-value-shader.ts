@@ -1,4 +1,5 @@
 import { applyColorGradeWGSL, paletteGradeWGSL } from './color-grade-chunk';
+import { instanceGeometryWGSL } from './instance-geometry-chunk';
 import { indexToUvWGSL, paletteMatrixWGSL } from './palette-chunk';
 
 const computeSplatValueWGSL = (bands: number, firstBinding = 1) => {
@@ -19,6 +20,7 @@ const computeSplatValueWGSL = (bands: number, firstBinding = 1) => {
         declarations.push(`@group(0) @binding(${binding++}) var splatSH_8to11: texture_2d<u32>;`);
     }
     if (bands > 2) declarations.push(`@group(0) @binding(${binding++}) var splatSH_12to15: texture_2d<u32>;`);
+    declarations.push(`@group(0) @binding(${binding++}) var posedTransforms: texture_2d<f32>;`);
     declarations.push(`@group(0) @binding(${binding}) var<uniform> uniforms: SplatValueUniforms;`);
 
     const coefficientCount = bands === 1 ? 3 : bands === 2 ? 8 : 15;
@@ -51,7 +53,8 @@ fn readSHCoeff(s: SplatValue, index: i32) -> f32 {
 }
 
 fn evaluateSH(s: SplatValue) -> vec3f {
-    let direction = normalize(s.worldPos - uniforms.cameraWorldPos);
+    var direction = normalize(s.worldPos - uniforms.cameraWorldPos);
+    if (hasAnimation()) { direction = normalize((uniforms.assetInverse * vec4f(direction, 0.0)).xyz); }
     var coefficients: array<vec3f, ${coefficientCount}>;
     for (var i = 0; i < ${coefficientCount}; i++) {
         coefficients[i] = unpackSHTriplet(i, s.uv);
@@ -96,6 +99,7 @@ struct SplatValueUniforms {
     onScreenOnly: u32,
     logBins: u32,
     entityMatrix: mat4x4f,
+    assetInverse: mat4x4f,
     viewMatrix: mat4x4f,
     viewProjection: mat4x4f,
     cameraWorldPos: vec3f,
@@ -121,6 +125,7 @@ struct SplatValue {
 ${declarations.join('\n')}
 
 ${paletteMatrixWGSL}
+${instanceGeometryWGSL}
 ${indexToUvWGSL('sourceCoord', 'uniforms.sourceWidth')}
 
 ${applyColorGradeWGSL}
@@ -157,7 +162,7 @@ fn readSplat(index: u32, value: ptr<function, SplatValue>) -> bool {
     let data = textureLoad(transformA, uv, 0);
     let localPos = bitcast<vec3f>(data.xyz);
     let paletteWord = instancePalette[index];
-    let worldPos = (uniforms.entityMatrix * paletteMatrix(paletteWord & 0xffffu) * vec4f(localPos, 1.0)).xyz;
+    let worldPos = (uniforms.entityMatrix * instanceMatrix(index, paletteWord & 0xffffu) * vec4f(localPos, 1.0)).xyz;
     var visible = true;
     if (uniforms.onScreenOnly != 0u) {
         let clip = uniforms.viewProjection * vec4f(worldPos, 1.0);

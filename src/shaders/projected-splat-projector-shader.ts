@@ -1,4 +1,5 @@
 import { applyColorGradeWGSL, paletteGradeWGSL } from './color-grade-chunk';
+import { instanceGeometryWGSL } from './instance-geometry-chunk';
 import { indexToUvWGSL, paletteMatrixWGSL } from './palette-chunk';
 import { compactTailWGSL, overlayEligibleWGSL } from './projected-splat-chunk';
 import { stochasticWarpWGSL } from './stochastic-warp-chunk';
@@ -99,6 +100,7 @@ struct ProjectorUniforms {
     isOrtho: u32,
     focal: vec2f,
     model: mat4x4f,
+    assetInverse: mat4x4f,
     view: mat4x4f,
     viewProj: mat4x4f,
     cameraPosition: vec3f,
@@ -175,12 +177,14 @@ struct ProjectorUniforms {
 ${bands > 0 ? '@group(0) @binding(14) var splatSH_1to3: texture_2d<u32>;' : ''}
 ${bands > 1 ? '@group(0) @binding(15) var splatSH_4to7: texture_2d<u32>;\n@group(0) @binding(16) var splatSH_8to11: texture_2d<u32>;' : ''}
 ${bands > 2 ? '@group(0) @binding(17) var splatSH_12to15: texture_2d<u32>;' : ''}
-@group(0) @binding(${14 + (bands > 0 ? 1 : 0) + (bands > 1 ? 2 : 0) + (bands > 2 ? 1 : 0)}) var<uniform> uniforms: ProjectorUniforms;
+@group(0) @binding(${14 + (bands > 0 ? 1 : 0) + (bands > 1 ? 2 : 0) + (bands > 2 ? 1 : 0)}) var posedTransforms: texture_2d<f32>;
+@group(0) @binding(${15 + (bands > 0 ? 1 : 0) + (bands > 1 ? 2 : 0) + (bands > 2 ? 1 : 0)}) var<uniform> uniforms: ProjectorUniforms;
 
 ${shCode(bands)}
 ${indexToUvWGSL('sourceCoord', 'uniforms.sourceWidth')}
 ${indexToUvWGSL('cacheCoord', 'uniforms.cacheWidth')}
 ${paletteMatrixWGSL}
+${instanceGeometryWGSL}
 ${applyColorGradeWGSL}
 ${paletteGradeWGSL}
 ${overlayEligibleWGSL}
@@ -239,7 +243,7 @@ fn main(
     let rotation = vec4f(packedRotation, b.w, sqrt(max(0.0, 1.0 - dot(vec3f(packedRotation, b.w), vec3f(packedRotation, b.w)))));
     let localCenter = bitcast<vec3f>(a.xyz);
     let paletteWord = instancePalette[instance];
-    let model = uniforms.model * paletteMatrix(paletteWord & 0xffffu);
+    let model = uniforms.model * instanceMatrix(instance, paletteWord & 0xffffu);
     let worldCenter = model * vec4f(localCenter, 1.0);
     let viewCenter = uniforms.view * worldCenter;
     let depth = -viewCenter.z;
@@ -435,7 +439,8 @@ fn main(
     }
     if (${bands}u > 0u) {
         let worldDirection = normalize(worldCenter.xyz - uniforms.cameraPosition);
-        let localDirection = normalize(transpose(mat3x3f(model[0].xyz, model[1].xyz, model[2].xyz)) * worldDirection);
+        var localDirection = normalize(transpose(mat3x3f(model[0].xyz, model[1].xyz, model[2].xyz)) * worldDirection);
+        if (hasAnimation()) { localDirection = normalize((uniforms.assetInverse * vec4f(worldDirection, 0.0)).xyz); }
         color = vec4f(color.rgb + evaluateSH(uv, localDirection), color.a);
     }
     var graded = applyColorGrade(color.rgb, grade.row0, grade.row1, grade.row2);

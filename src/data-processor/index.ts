@@ -7,7 +7,8 @@ import {
     ScopeSpace,
     Shader,
     ShaderUtils,
-    BlendState
+    BlendState,
+    Texture
 } from 'playcanvas';
 
 import { BufferPool } from './buffer-pool';
@@ -72,8 +73,8 @@ class DataProcessor {
     }
 
     // use gpu to calculate both selected and visible bounds in a single pass
-    calcBound(splat: Splat, selectionBound: BoundingBox, localBound: BoundingBox): Promise<void> {
-        return this.calcBoundImpl.run(splat, selectionBound, localBound);
+    calcBound(splat: Splat, selectionBound: BoundingBox, localBound: BoundingBox, poseTexture?: Texture): Promise<void> {
+        return this.calcBoundImpl.run(splat, selectionBound, localBound, poseTexture);
     }
 
     // calculate histogram (bin counts + min/max) entirely on GPU

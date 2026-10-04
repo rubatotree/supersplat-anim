@@ -41,6 +41,7 @@ const createSplatValueUniformFormat = (device: GraphicsDevice) => new UniformBuf
     new UniformFormat('onScreenOnly', UNIFORMTYPE_UINT),
     new UniformFormat('logBins', UNIFORMTYPE_UINT),
     new UniformFormat('entityMatrix', UNIFORMTYPE_MAT4),
+    new UniformFormat('assetInverse', UNIFORMTYPE_MAT4),
     new UniformFormat('viewMatrix', UNIFORMTYPE_MAT4),
     new UniformFormat('viewProjection', UNIFORMTYPE_MAT4),
     new UniformFormat('cameraWorldPos', UNIFORMTYPE_VEC3),
@@ -73,6 +74,7 @@ const createSplatValueTextureFormats = (bands: number) => {
         formats.push(uintTexture('splatSH_8to11'));
     }
     if (bands > 2) formats.push(uintTexture('splatSH_12to15'));
+    formats.push(new BindTextureFormat('posedTransforms', SHADERSTAGE_COMPUTE, undefined, SAMPLETYPE_UNFILTERABLE_FLOAT, false));
     return formats;
 };
 
@@ -117,6 +119,8 @@ const setSplatValueParameters = (
     compute.setParameter('onScreenOnly', options?.onScreenOnly ? 1 : 0);
     compute.setParameter('logBins', options?.logBins ? 1 : 0);
     compute.setParameter('entityMatrix', entityMatrix.data);
+    compute.setParameter('assetInverse', new Mat4().invert(entityMatrix).data);
+    compute.setParameter('posedTransforms', splat.posedTransforms);
     compute.setParameter('viewMatrix', viewMatrix.data);
     compute.setParameter('viewProjection', viewProjection.data);
     compute.setParameter('cameraWorldPos', [cameraPos.x, cameraPos.y, cameraPos.z]);

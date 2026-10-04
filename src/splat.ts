@@ -5,9 +5,11 @@ import {
     Entity,
     Mat4,
     Quat,
-    Vec3
+    Vec3,
+    Texture
 } from 'playcanvas';
 
+import { AnimatedGeometry, staticPoseTexture } from './animation/animated-geometry';
 import { ColorGrade, createGradeTerms, gradeTerms } from './color-grade';
 import { ColorPalette } from './color-palette';
 import { EditorSplatResource } from './editor-splat-resource';
@@ -37,6 +39,12 @@ const boundingPoints =
     }).flat(3);
 
 class Splat extends Element {
+    animation: AnimatedGeometry | null = null;
+
+    get posedTransforms(): Texture {
+        return this.animation?.frame ? this.animation.poseTexture : staticPoseTexture(this.resource.device);
+    }
+
     asset: Asset;
     resource: EditorSplatResource;
     numSplats = 0;
@@ -193,6 +201,7 @@ class Splat extends Element {
 
     destroy() {
         super.destroy();
+        this.animation?.dispose();
         this.instances.destroy();
         this.transformPalette.destroy();
         this.colorPalette.destroy();
@@ -208,6 +217,7 @@ class Splat extends Element {
     async updateState() {
         // uploads dirty ranges; counts are maintained by the mutators.
         this.instances.flush();
+        this.animation?.dispatch();
         this.numSplats = this.instances.count;
         this.numLocked = this.instances.numLocked;
         this.numSelected = this.instances.numSelected;
@@ -233,6 +243,7 @@ class Splat extends Element {
     async updatePositions() {
         // palette index edits mark dirty spans; get them onto the GPU
         this.instances.flush();
+        this.animation?.dispatch();
         await this.updateLocalBounds();
 
         this.scene.forceRender = true;
@@ -388,6 +399,12 @@ class Splat extends Element {
     // calculate both selection and local bounds (async, callers must await)
     async updateLocalBounds(): Promise<void> {
         await this.scene.dataProcessor.calcBound(this, this.selectionBoundStorage, this.localBoundStorage);
+        this.updateWorldBound();
+    }
+
+    commitAnimationBounds(selection: BoundingBox, local: BoundingBox): void {
+        this.selectionBoundStorage.copy(selection);
+        this.localBoundStorage.copy(local);
         this.updateWorldBound();
     }
 

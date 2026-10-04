@@ -16,12 +16,14 @@ import {
     GraphicsDevice,
     Shader,
     StorageBuffer,
+    Texture,
     UniformBufferFormat,
     UniformFormat,
     Vec2,
     Vec3
 } from 'playcanvas';
 
+import { instanceGeometryWGSL } from '../shaders/instance-geometry-chunk';
 import { indexToUvWGSL, paletteMatrixWGSL } from '../shaders/palette-chunk';
 import { Splat } from '../splat';
 
@@ -47,10 +49,12 @@ struct Uniforms {
 @group(0) @binding(3) var<storage, read> instancePalette: array<u32>;
 @group(0) @binding(4) var transformA: texture_2d<u32>;
 @group(0) @binding(5) var transformPalette: texture_2d<f32>;
-@group(0) @binding(6) var<uniform> uniforms: Uniforms;
+@group(0) @binding(6) var posedTransforms: texture_2d<f32>;
+@group(0) @binding(7) var<uniform> uniforms: Uniforms;
 
 ${indexToUvWGSL('sourceCoord', 'uniforms.sourceWidth')}
 ${paletteMatrixWGSL}
+${instanceGeometryWGSL}
 
 fn instanceFlagByte(instance: u32) -> u32 {
     return (instanceFlags[instance >> 2u] >> ((instance & 3u) * 8u)) & 0xffu;
@@ -68,7 +72,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u, @builtin(num_workgroups) numW
         let state = instanceFlagByte(i);
         let uv = sourceCoord(instanceSource[i]);
         var center = bitcast<vec3f>(textureLoad(transformA, uv, 0).xyz);
-        center = (paletteMatrix(instancePalette[i] & 0xffffu) * vec4f(center, 1.0)).xyz;
+        center = (instanceMatrix(i, instancePalette[i] & 0xffffu) * vec4f(center, 1.0)).xyz;
         let finite = abs(center) <= vec3f(1e30);
         let safeMin = select(vec3f(1e6), center, finite);
         let safeMax = select(visMax, center, finite);
@@ -107,6 +111,7 @@ class CalcBound {
             new BindStorageBufferFormat('instancePalette', SHADERSTAGE_COMPUTE, true),
             new BindTextureFormat('transformA', SHADERSTAGE_COMPUTE, undefined, SAMPLETYPE_UINT, false),
             new BindTextureFormat('transformPalette', SHADERSTAGE_COMPUTE, undefined, SAMPLETYPE_UNFILTERABLE_FLOAT, false),
+            new BindTextureFormat('posedTransforms', SHADERSTAGE_COMPUTE, undefined, SAMPLETYPE_UNFILTERABLE_FLOAT, false),
             new BindUniformBufferFormat('uniforms', SHADERSTAGE_COMPUTE)
         ]);
         const shader = new Shader(device, {
@@ -119,7 +124,7 @@ class CalcBound {
         this.compute = new Compute(device, shader, 'CalcBoundCompute');
     }
 
-    async run(splat: Splat, selectionBound: BoundingBox, localBound: BoundingBox): Promise<void> {
+    async run(splat: Splat, selectionBound: BoundingBox, localBound: BoundingBox, poseTexture?: Texture): Promise<void> {
         const transformA = splat.resource.getTexture('transformA');
         // 4 vec4 partials per thread, and the thread count is fixed
         const byteSize = NUM_THREADS * 4 * 16;
@@ -132,6 +137,7 @@ class CalcBound {
         this.compute.setParameter('instanceFlags', splat.instances.instanceFlags);
         this.compute.setParameter('instancePalette', splat.instances.instancePalette);
         this.compute.setParameter('transformA', transformA);
+        this.compute.setParameter('posedTransforms', poseTexture ?? splat.posedTransforms);
         this.compute.setParameter('transformPalette', splat.transformPalette.texture);
         this.compute.setParameter('sourceWidth', transformA.width);
         this.compute.setParameter('numSplats', splat.instances.count);

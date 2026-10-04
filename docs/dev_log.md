@@ -42,3 +42,23 @@
   must not be claimed. App/GPU validation is still pending.
 - Quota checkpoint: 49% remaining, continue.
 - Next: shared GPU matrix path and import into the editor.
+
+## M3 — shared GPU deformation
+
+- BGS DQ compute writes a provider-neutral affine atlas. Projector, bounds,
+  volume/screen selection and data/color computations consume the same atlas.
+- Pose and reduced bounds publish together using double buffering; stale
+  requests are invalidated. GPU fallback counter is exposed per evaluated frame.
+- Added local directory/multifile, ZIP and URL imports with strict local missing
+  resource errors. Morton resource rows map back to immutable BGS source rows.
+- Video frame preparation waits for exact seconds; scene-frame SH directions
+  use the layer inverse without rotating SH by animated node transforms.
+- Typecheck, focused lint, debug build and 3 Playwright WebGPU tests passed.
+  Synthetic five-point matrix error: 2.24e-8; real 350k scene, both clips,
+  704 deterministic row samples: maximum matrix error 8.41e-8. GPU property
+  packing error is not included in these numbers. Static PLY path passed.
+- A real-scene screenshot was visually inspected. Adapter description was blank;
+  no hardware performance claim is made until adapter identity is confirmed.
+- Remaining: UI, canonical editing/layer sharing, project persistence, posed
+  covariance inspector/snapshots, standard BGS export and full tool regressions.
+- Quota checkpoint: 49% remaining, continue.

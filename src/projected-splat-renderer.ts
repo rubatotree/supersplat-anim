@@ -463,6 +463,7 @@ class ProjectedSplatRenderer {
             new UniformFormat('isOrtho', UNIFORMTYPE_UINT),
             new UniformFormat('focal', UNIFORMTYPE_VEC2),
             new UniformFormat('model', UNIFORMTYPE_MAT4),
+            new UniformFormat('assetInverse', UNIFORMTYPE_MAT4),
             new UniformFormat('view', UNIFORMTYPE_MAT4),
             new UniformFormat('viewProj', UNIFORMTYPE_MAT4),
             new UniformFormat('cameraPosition', UNIFORMTYPE_VEC3),
@@ -492,6 +493,7 @@ class ProjectedSplatRenderer {
             new UniformFormat('occlusionBlock', UNIFORMTYPE_FLOAT),
             new UniformFormat('occlusionEnabled', UNIFORMTYPE_UINT)
         ]);
+        textureFormats.push(new BindTextureFormat('posedTransforms', SHADERSTAGE_COMPUTE, undefined, SAMPLETYPE_UNFILTERABLE_FLOAT, false));
         const bindGroupFormat = new BindGroupFormat(this.device, [
             new BindStorageBufferFormat('sortKeys', SHADERSTAGE_COMPUTE),
             new BindStorageBufferFormat('compactEntries', SHADERSTAGE_COMPUTE),
@@ -955,6 +957,8 @@ class ProjectedSplatRenderer {
             compute.setParameter('isOrtho', cameraComponent.projection === 1 ? 1 : 0);
             compute.setParameter('focal', focal);
             compute.setParameter('model', splat.entity.getWorldTransform().data);
+            compute.setParameter('assetInverse', new Mat4().invert(splat.entity.getWorldTransform()).data);
+            compute.setParameter('posedTransforms', splat.posedTransforms);
             compute.setParameter('view', view.data);
             compute.setParameter('viewProj', this.viewProjection.data);
             compute.setParameter('cameraPosition', [cameraPosition.x, cameraPosition.y, cameraPosition.z]);
