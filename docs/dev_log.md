@@ -212,3 +212,18 @@
 - Final fully software configuration (SwiftShader for both presentation and Dawn):
   device/canvas preflight and shared animated geometry checks passed, including
   2.4229e-8 maximum DQ matrix error. Remote rerun follows this configuration.
+
+## Delivery closure — 2026-10-05
+
+- Final fully software local suite: 17 passed, four intentional skips (4.2m).
+  Additional hardware adapter/canvas readback preflight passed, confirming
+  NVIDIA Lovelace with fallback=false.
+- GitHub rerun 37221389015 on 4adbeae: ALL jobs passed. Software browser
+  suite: 17 passed, four intentional skips (4.3m); build, typecheck/19 unit
+  tests, lint and locales passed. Machine-readable CI summary is committed.
+- Updated fork README, completed HANDOFF, acceptance notes and Chromium primary
+  configuration links. Original failed CI remains documented, not counted as
+  passed. No pending required engineering or acceptance items for this goal.
+- All code/validation commits pushed to origin/main without force; final docs
+  commit follows. No production assets or stress binaries committed.
+- Latest live quota: 85% remaining, above the user's 80% hard floor.

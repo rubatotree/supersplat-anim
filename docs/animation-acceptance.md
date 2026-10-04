@@ -1,7 +1,8 @@
 # 动画交付验收记录
 
 日期：2026-10-05（北京时间）。基于 SuperSplat 3.5.1；最终功能提交
-`0c1ffc5`（界面）与 `80a070f`（捕获保护），后续测试提交记录这些结果。
+`0c1ffc5`（界面）与 `80a070f`（捕获保护），`5425a43` 保存验收证据，
+`4adbeae` 修复 CI 的完整软件渲染路径并增加画布预检。
 真实输入与合成压力场景分别测试，不互相替代。
 
 ## 验证结果
@@ -12,7 +13,7 @@
 | 外部参考 | 原始 Python 数学测试 5/5、JavaScript reference-player 自检通过 |
 | 真实输入 | 350,000 高斯、10 节点、2 片段、359 样本；独立 Python 验证与 6 文件哈希清单通过：[记录](acceptance/real-input-validation.json) |
 | 实际 GPU 浏览器 | 20/20 通过，约 2.1 分钟；包含两个真实场景测试、两个独立压力/性能测试 |
-| 软件 WebGPU | Vulkan SwiftShader 15/15 通过，4 项真实/性能检查明确跳过；随后新增 PNG 截图测试单独通过 |
+| 软件 WebGPU | 最终完整配置 17/17 通过（约 4.2 分钟），4 项真实/性能检查明确跳过；包含设备/画布预检与 PNG 截图 |
 | 界面 | PCUI 原生灰黑/橙色样式、字段标签、播放状态、样本/来源帧、折叠四槽检查器、稳定节点图例；中文切换保留图标；Enter 展开及 pressed 状态；1280/640/390px 无动画面板横向溢出 |
 | 编辑 | 非绑定姿态仿射编辑后播放、撤销/重做、复制、分离、删除/恢复、锁定/解锁；共享资源与独立实例状态保持 |
 | 数据与工具 | 变形后的直方图/协方差、框选、屏幕掩码选择、深度/足迹组合、球/盒体积、球刷、颜色选择；真实指针测量与定向；动画开始编辑时暂停 |
@@ -53,7 +54,9 @@
 Chromium 153.0.8010.12、WebGPU Vulkan。浏览器报告 GPU vendor `nvidia`、
 architecture `lovelace`，device/description 为空，因此不指称具体显卡型号。
 
-目标确认为 1920×1080，350,000 实例；采用排序渲染、同一相机，强制
+合成资产为 100×100×35 的规则网格，间距 0.025 米、标准差 0.006 米，
+从 5 点参考资产继承属性和片段，使用静态根/运动节点硬绑定；不模拟真实
+捕获或训练出的软绑定。目标确认为 1920×1080，350,000 实例；采用排序渲染、同一相机，强制
 持续刷新。每段预热 1.5 秒后测量 4 秒。静态对照移除动画计算但保留同一
 不可变资源、实例数和视角，使用基础姿态，因此投影覆盖与动画姿态不完全
 相同。GPU/CPU 中位数与 p95 是编辑器最后最多 180 帧的滚动窗口；
@@ -108,8 +111,11 @@ BGS_REAL_SAMPLE=/data/zhuyutian/data/bgs/samples/pick-the-block-20261004/ npm ru
 BGS_WEBGPU_SOFTWARE=1 BGS_SKIP_REAL=1 BGS_SKIP_PERF=1 npm run test:browser
 ```
 
-软件模式必须同时使用 Vulkan 与 SwiftShader（由 Playwright 配置提供），
-只设置 ANGLE SwiftShader 不足以建立本项目需要的 WebGPU 设备。
+软件模式显式配置 Dawn 的 SwiftShader 适配器、ANGLE SwiftShader、Chrome
+Vulkan SwiftShader 与 GPU raster/2D canvas（由 Playwright 配置提供）。
+只有适配器或缓冲区可用不足以证明画布共享图像可用，因此新增画布 clear
+及回读预检。配置参考 [Chromium 的 SwiftShader 文档](https://chromium.googlesource.com/chromium/src/+/main/docs/gpu/swiftshader.md)
+与 [Chromium 自身的 WebGPU 测试配置](https://chromium.googlesource.com/chromium/src/+/HEAD/third_party/blink/web_tests/FlagSpecificConfig)。
 每次浏览器运行覆盖 `test-results/`，其中保留导出 ZIP、项目、截图和
 性能 JSON。真实数据以及大型生成压力文件均不提交；压力场景默认生成
 在 `.git/bgs-synthetic-stress`，可显式传输出目录。
@@ -123,7 +129,11 @@ python3 -B /data/zhuyutian/data/bgs/reference/validate.py "$BGS_ASSET_DIR" --ver
 ```
 
 GitHub CI 工作流包含构建、类型检查、单元测试、lint/本地化和软件 WebGPU
-回归；硬件性能与真实数据验证由本机完成。远端运行状态以 Actions 记录为准。
+回归；硬件性能与真实数据验证由本机完成。最终代码提交 `4adbeae` 的远端验证全部通过：
+[CI 37221389015](https://github.com/rubatotree/supersplat-anim/actions/runs/37221389015)，
+17 项软件浏览器检查通过、4 项明确跳过，约 4.3 分钟。机器可读摘要见
+[github-ci.json](acceptance/github-ci.json)。初次运行因画布共享图像初始化
+失败而超时，已在本机复现并修正完整软件渲染配置，不将初次运行计作通过。
 
 ## 界面证据
 

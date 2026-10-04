@@ -16,6 +16,19 @@ A live version of this tool is available at: https://superspl.at/editor
 
 To learn more about using SuperSplat, please refer to the [User Guide](https://developer.playcanvas.com/user-manual/gaussian-splatting/editing/supersplat/).
 
+## 4DGS animation fork
+
+This fork adds BGS 0.1 playback, binding colors and inspection, bound affine
+editing, animated project persistence, current-frame snapshots and standard BGS
+round trips. Run this repository locally to use these additions; the upstream
+live editor linked above does not include this fork's changes.
+
+See the [animation guide](docs/animation.md) for import and editing, and the
+[acceptance report](docs/animation-acceptance.md) for real-scene validation,
+interface screenshots and separate synthetic/real 350k performance records.
+The provider contract supports future animation implementations; neural loading
+and dynamic topology are outside this version.
+
 ## Local Development
 
 To initialize a local development environment for SuperSplat, ensure you have [Node.js](https://nodejs.org/) 20.19 or later installed. Follow these steps:
