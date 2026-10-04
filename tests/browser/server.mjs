@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 
 const roots = {
+    '/fixtures/output/': resolve('test-results'),
     '/fixtures/conformance/': resolve('tests/fixtures/bgs'),
     '/fixtures/real/': process.env.BGS_REAL_SAMPLE ?? '/data/zhuyutian/data/bgs/samples/pick-the-block-20261004/'
 };

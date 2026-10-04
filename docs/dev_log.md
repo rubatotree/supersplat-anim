@@ -92,3 +92,18 @@
   including non-bind affine edit, later-time undo/redo, edited GPU/CPU matrix
   comparison, shared duplication, deletion/restoration and separation/undo.
 - Quota checkpoint: 48% remaining. Next: project version 2 persistence.
+
+## M6 — native project persistence
+
+- Project version 2 stores immutable BGS files once per shared asset, resource
+  row mapping, clip/bind-pose state, preview coloring and float64 affine sidecars.
+  Version 0/1 reading remains supported; unknown future versions are rejected.
+- Animated resources keep all canonical rows in project saves so restoring
+  missing instances retains their original geometry and bindings. Layer edits
+  and placement remain independent; duplicate layers share both resource/data.
+- Saves freeze playback and wait for queued edits. Load validates binary mapping
+  and affine sidecars and waits for the restored timeline's evaluated pose.
+- 15 unit tests, typecheck, focused lint, debug build and 6 WebGPU tests pass.
+  Browser save/download/reopen preserved shared assets, edits, stable IDs,
+  timeline time/rate and binding preview state.
+- Quota checkpoint: 48% remaining. Next: posed exports and standard BGS round trip.

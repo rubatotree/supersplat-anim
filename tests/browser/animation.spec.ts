@@ -172,3 +172,61 @@ test('canonical edits retain bindings through playback, undo, deletion and layer
     expect(result.restored).toBe(5);
     expect(errors).toEqual([]);
 });
+
+test('ssproj round trip preserves animation, shared layers, edits and timeline', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    await page.goto('/?load=/fixtures/conformance/scene.json');
+    await page.waitForFunction(() => (window as any).scene?.elements.some((s: any) => s.animation?.frame));
+    const before = await page.evaluate(async () => {
+        const events = (window as any).scene.events;
+        events.fire('select.all');
+        await events.invoke('queue', () => {});
+        await events.invoke('animation.prepare', 0.7);
+        const pivot = events.invoke('pivot');
+        const transform = pivot.transform.clone();
+        transform.position.y += 0.5;
+        transform.scale.set(0.7, 1.3, 1.1);
+        pivot.start(); pivot.move(transform); pivot.end();
+        await events.invoke('queue', () => {});
+        events.fire('edit.duplicate');
+        await events.invoke('queue', () => {});
+        events.fire('timeline.setSeconds', 0.7);
+        events.fire('timeline.setPlaybackRate', 1.5);
+        events.fire('animation.setBindingColors', true);
+        const layer = events.invoke('selection');
+        return { matrices: Array.from(layer.instances.canonicalEdits), ids: Array.from(layer.animation.provider.data.gaussians.sourceIds) };
+    });
+    const downloadPromise = page.waitForEvent('download');
+    await page.evaluate(async () => {
+        (window as any).showDirectoryPicker = undefined;
+        const events = (window as any).scene.events;
+        events.functions.set('show.savePopup', async () => ({ filename: 'animation.ssproj' }));
+        await events.invoke('doc.saveAs');
+    });
+    const download = await downloadPromise;
+    await download.saveAs('test-results/animation.ssproj');
+    await page.goto('/');
+    await page.waitForFunction(() => (window as any).scene?.events?.functions.has('animation.prepare'));
+    const after = await page.evaluate(async () => {
+        const scene = (window as any).scene;
+        const blob = await (await fetch('/fixtures/output/animation.ssproj')).blob();
+        await scene.events.invoke('doc.load', new File([blob], 'animation.ssproj'));
+        const layers = scene.events.invoke('animation.layers');
+        return { count: layers.length, shared: layers[0].resource === layers[1].resource,
+            sharedAnimation: layers[0].animation.provider.data === layers[1].animation.provider.data,
+            matrices: Array.from(layers[0].instances.canonicalEdits), time: scene.events.invoke('timeline.seconds'),
+            rate: scene.events.invoke('timeline.playbackRate'), colors: scene.events.invoke('animation.bindingColors'),
+            ids: Array.from(layers[0].animation.provider.data.gaussians.sourceIds) };
+    });
+    expect(after.count).toBe(2);
+    expect(after.shared).toBeTruthy();
+    expect(after.sharedAnimation).toBeTruthy();
+    expect(after.matrices).toEqual(before.matrices);
+    expect(after.time).toBeCloseTo(0.7);
+    expect(after.rate).toBe(1.5);
+    expect(after.colors).toBeTruthy();
+    expect(after.ids).toEqual(before.ids);
+    expect(errors).toEqual([]);
+});

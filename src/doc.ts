@@ -1,6 +1,11 @@
 import { ZipFileSystem, ZipReadFileSystem } from '@playcanvas/splat-transform';
 import type { Asset, Quat } from 'playcanvas';
 
+import { AnimatedGeometry } from './animation/animated-geometry';
+import { loadBgs, readBytes, safeAssetPath } from './animation/bgs-loader';
+import { BgsProvider } from './animation/bgs-provider';
+import type { BgsData } from './animation/bgs-types';
+import { encodeCanonicalEdits, readCanonicalEdits, writeAnimationAsset, writeBytes } from './animation/project-animation';
 import { decodeInstances, encodeInstances, restorePalettes } from './doc-instances';
 import type { EditorSplatResource } from './editor-splat-resource';
 import { Events } from './events';
@@ -142,6 +147,12 @@ const registerDocEvents = (scene: Scene, events: Events) => {
             const docData = await docSource.read().readAll();
             docSource.close();
             const document = JSON.parse(new TextDecoder().decode(docData));
+            if (document.version > 2) throw new Error(`Unsupported project version ${document.version}`);
+            const animations: BgsData[] = [];
+            for (const animation of document.animations ?? []) {
+                animations.push(await loadBgs(zipFs, safeAssetPath('document.json', animation.scene)));
+            }
+            const animationRows: (Uint32Array | null)[] = [];
 
             if ((document.version ?? 0) >= 1) {
                 // v1: the static tier is stored once per resource, and each layer
@@ -153,6 +164,14 @@ const registerDocEvents = (scene: Scene, events: Events) => {
                     const loaded = await scene.assetLoader.loadAsset(resource.filename, zipFs, false, true);
                     documentResources.add(loaded.asset.resource as EditorSplatResource);
                     assets.push(loaded);
+                    if (resource.animationAsset !== undefined) {
+                        const bytes = await readBytes(zipFs, safeAssetPath('document.json', resource.sourceRows));
+                        if (bytes.byteLength !== resource.numRows * 4 || !animations[resource.animationAsset]) throw new Error('Invalid animation source mapping');
+                        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+                        const rows = Uint32Array.from({ length: resource.numRows }, (_, i) => view.getUint32(i * 4, true));
+                        if (rows.some(row => row >= animations[resource.animationAsset].gaussians.count)) throw new Error('Animation row out of range');
+                        animationRows.push(rows);
+                    } else animationRows.push(null);
                 }
 
                 for (const splatSettings of document.splats) {
@@ -169,6 +188,16 @@ const registerDocEvents = (scene: Scene, events: Events) => {
                     );
                     const splat = new Splat(asset, rotation, instances);
                     restorePalettes(records, splat.transformPalette, splat.colorPalette);
+                    if (splatSettings.canonicalEdits) {
+                        instances.canonicalEdits = await readCanonicalEdits(zipFs, safeAssetPath('document.json', splatSettings.canonicalEdits), records.count, numRows);
+                    }
+                    if (splatSettings.animation) {
+                        const index = document.resources[splatSettings.resource].animationAsset;
+                        if (!animations[index] || !animationRows[splatSettings.resource]) throw new Error('Missing project animation asset');
+                        splat.animation = new AnimatedGeometry(splat, new BgsProvider(animations[index]), animationRows[splatSettings.resource]);
+                        splat.animation.clipId = splatSettings.animation.clipId;
+                        splat.animation.bindPose = !!splatSettings.animation.bindPose;
+                    }
 
                     await scene.add(splat);
                     splat.docDeserialize(splatSettings);
@@ -200,6 +229,8 @@ const registerDocEvents = (scene: Scene, events: Events) => {
             }
 
             events.invoke('docDeserialize.timeline', document.timeline);
+            await events.invoke('animation.prepare', events.invoke('timeline.seconds'));
+            events.fire('animation.setBindingColors', !!document.bindingColors);
             events.invoke('docDeserialize.poseSets', document.poseSets, document.camera?.fov);
             events.invoke('docDeserialize.view', document.view);
             scene.camera.docDeserialize(document.camera);
@@ -255,7 +286,7 @@ const registerDocEvents = (scene: Scene, events: Events) => {
 
         return groups.map(({ resource, layers }) => {
             const referenced = new Uint8Array(resource.numRows);
-            if (!compact) referenced.fill(1);
+            if (!compact || layers.some(layer => layer.animation)) referenced.fill(1);
             for (const layer of layers) {
                 const { sourceRow, count } = layer.instances;
                 for (let i = 0; i < count; ++i) {
@@ -290,6 +321,8 @@ const registerDocEvents = (scene: Scene, events: Events) => {
         events.fire('startSpinner');
 
         try {
+            events.fire('animation.freeze');
+            await events.invoke('queue', () => {});
             const splats = events.invoke('scene.allSplats') as Splat[];
             const groups = groupByResource(splats, options.compact ?? true);
 
@@ -304,20 +337,29 @@ const registerDocEvents = (scene: Scene, events: Events) => {
                 }
             });
 
+            const animationAssets = Array.from(new Set(splats.filter(splat => splat.animation).map(splat => splat.animation.provider.data)));
             const document = {
-                version: 1,
+                version: 2,
+                animations: animationAssets.map((_, i) => ({ scene: `animation_${i}/scene.json` })),
+                bindingColors: events.invoke('animation.bindingColors'),
                 camera: scene.camera.docSerialize(),
                 view: events.invoke('docSerialize.view'),
                 poseSets: events.invoke('docSerialize.poseSets'),
                 timeline: events.invoke('docSerialize.timeline'),
                 resources: groups.map((group, i) => ({
                     filename: `resource_${i}.ply`,
-                    numRows: group.rows.length
+                    numRows: group.rows.length,
+                    ...(group.layers[0].animation ? {
+                        animationAsset: animationAssets.indexOf(group.layers[0].animation.provider.data),
+                        sourceRows: `animation_rows_${i}.bin`
+                    } : {})
                 })),
                 splats: splats.map((splat, i) => ({
                     ...splat.docSerialize(),
                     resource: layerInfo.get(splat).resource,
-                    instances: `instances_${i}.bin`
+                    instances: `instances_${i}.bin`,
+                    ...(splat.animation ? { animation: { clipId: splat.animation.clipId, bindPose: splat.animation.bindPose } } : {}),
+                    ...(splat.instances.canonicalEdits ? { canonicalEdits: `canonical_${i}.bin` } : {})
                 }))
             };
 
@@ -330,6 +372,20 @@ const registerDocEvents = (scene: Scene, events: Events) => {
             const docWriter = await zipFs.createWriter('document.json');
             await docWriter.write(new TextEncoder().encode(JSON.stringify(document)));
             await docWriter.close();
+
+            for (let i = 0; i < animationAssets.length; i++) await writeAnimationAsset(zipFs, `animation_${i}`, animationAssets[i]);
+            for (let i = 0; i < groups.length; i++) {
+                const animation = groups[i].layers[0].animation;
+                if (!animation) continue;
+                const bytes = new Uint8Array(groups[i].rows.length * 4);
+                const view = new DataView(bytes.buffer);
+                groups[i].rows.forEach((row, index) => view.setUint32(index * 4, animation.sourceRows[row], true));
+                await writeBytes(zipFs, `animation_rows_${i}.bin`, bytes);
+            }
+            for (let i = 0; i < splats.length; i++) {
+                const bytes = encodeCanonicalEdits(splats[i]);
+                if (bytes) await writeBytes(zipFs, `canonical_${i}.bin`, bytes);
+            }
 
             // Write each resource's static data once, verbatim
             for (let i = 0; i < groups.length; ++i) {
