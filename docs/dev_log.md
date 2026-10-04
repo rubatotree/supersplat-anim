@@ -197,3 +197,18 @@
   commands. CI adds software WebGPU, typecheck and unit checks; remote run status
   is checked separately after push. M8/M9/M10 local acceptance complete.
 - Weekly remaining: 85%; the 80% hard reserve has been maintained.
+
+## Remote software-renderer diagnosis
+
+- First GitHub browser run 37219883465 exceeded its 15-minute limit. Build,
+  typecheck, unit tests and lint passed, but WebGPU buffers lost their instance
+  reference during canvas initialization; this was not a passed browser run.
+- Reproduced the missing SharedImageBackingFactory with a standalone launch.
+  A buffer-only device check passed, so added an actual canvas clear/readback
+  preflight, explicit SwiftShader adapter/ANGLE/Vulkan paths and raster settings.
+  CI now prints test progress, fails after the first failure and includes browser
+  stderr diagnostics. Local baseline Vulkan smoke passed before the final fully
+  software compositor configuration; verification continues below.
+- Final fully software configuration (SwiftShader for both presentation and Dawn):
+  device/canvas preflight and shared animated geometry checks passed, including
+  2.4229e-8 maximum DQ matrix error. Remote rerun follows this configuration.
