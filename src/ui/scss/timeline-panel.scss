@@ -8,6 +8,40 @@
         display: flex;
     }
 
+    #animation-controls {
+        margin: 0;
+        padding: 6px 12px;
+        background: $bcg-primary;
+        .animation-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 5px;
+            margin: 0;
+            > * { margin: 0; }
+            #animation-layer { width: 210px; }
+            #animation-clip { width: 190px; }
+            #animation-rate { width: 64px; }
+            #animation-time { width: 84px; }
+            button.active { color: $clr-hilight; }
+        }
+        #animation-inspector, #animation-axes {
+            display: block;
+            white-space: normal;
+            margin: 4px 0;
+            color: $clr-disabled;
+        }
+        #animation-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 14px;
+            margin: 4px 0;
+            font-size: 11px;
+            span { display: inline-flex; align-items: center; gap: 5px; }
+            i { width: 8px; height: 8px; border-radius: 2px; }
+        }
+    }
+
     > #controls-wrap {
         display: flex;
         flex-direction: row;

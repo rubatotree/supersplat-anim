@@ -15,6 +15,15 @@ const assetToEditor = new Mat4().set([0, 0, -1, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0
 const registerAnimationEvents = (scene: Scene): void => {
     const { events } = scene;
     const layers = (): Splat[] => (scene.getElementsByType(ElementType.splat) as Splat[]).filter(splat => splat.animation);
+    let bindingColors = false;
+    events.function('animation.bindingColors', () => bindingColors);
+    events.on('animation.setBindingColors', (value: boolean) => {
+        bindingColors = !!value;
+        scene.forceRender = true;
+        layers().forEach(splat => splat.changedCounter++);
+        events.fire('animation.bindingColors', bindingColors);
+    });
+    events.on('animation.error', (message: string) => events.invoke('showPopup', { type: 'error', header: 'Animation', message }));
     let pending: number | null = null;
     let draining = false;
     const prepare = async (time: number): Promise<void> => {
@@ -66,6 +75,7 @@ const registerAnimationEvents = (scene: Scene): void => {
         events.fire('timeline.setDuration', Math.max(clip.duration, keyDuration, first ? 0 : events.invoke('timeline.duration')));
         if (first) events.fire('timeline.setLoop', clip.loopDefault);
         events.fire('animation.layers', layers());
+        events.fire('statusBar.setPanel', 'timeline');
         return splat;
     });
     events.on('scene.elementRemoved', (splat: Splat) => {

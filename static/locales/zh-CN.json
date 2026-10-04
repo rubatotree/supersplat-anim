@@ -390,5 +390,15 @@
     "popup.shortcuts.remove-last-polygon-point": "删除最后一个多边形点",
     "popup.shortcuts.remove-tool-point": "删除选中的测量/对齐点",
     "popup.shortcuts.stamp-key": "用当前相机姿态覆盖关键帧",
-    "popup.shortcuts.copy-key": "拖动关键帧的副本"
+    "popup.shortcuts.copy-key": "拖动关键帧的副本",
+    "animation.layer": "动画图层",
+    "animation.clip": "动画片段",
+    "animation.rate": "播放倍率 ×",
+    "animation.seconds": "时间（秒）",
+    "animation.bind-pose": "绑定姿态",
+    "animation.binding-colors": "绑定节点染色",
+    "animation.asset-axes": "资产坐标轴：+X 前 · +Y 左 · +Z 上（米）",
+    "animation.sample": "样本 {{sample}} · 来源帧 {{source}}",
+    "animation.fallbacks": "{{count}} 次 DQ 回退",
+    "animation.inspect-one": "选择单个高斯以查看稳定 ID 和四槽绑定权重。"
 }

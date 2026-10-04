@@ -390,5 +390,15 @@
     "popup.shortcuts.remove-last-polygon-point": "ポリゴンの最後の点を削除",
     "popup.shortcuts.remove-tool-point": "選択中の計測／整列ポイントを削除",
     "popup.shortcuts.stamp-key": "キーを現在のカメラポーズで上書き",
-    "popup.shortcuts.copy-key": "キーのコピーをドラッグ"
+    "popup.shortcuts.copy-key": "キーのコピーをドラッグ",
+    "animation.layer": "Animation layer",
+    "animation.clip": "Clip",
+    "animation.rate": "Playback rate ×",
+    "animation.seconds": "Time (seconds)",
+    "animation.bind-pose": "Bind pose",
+    "animation.binding-colors": "Binding node colors",
+    "animation.asset-axes": "Asset axes: +X forward · +Y left · +Z up (meters)",
+    "animation.sample": "Sample {{sample}} · source frame {{source}}",
+    "animation.fallbacks": "{{count}} DQ fallbacks",
+    "animation.inspect-one": "Select one Gaussian to inspect its stable ID and four binding slots."
 }

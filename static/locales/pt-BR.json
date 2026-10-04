@@ -390,5 +390,15 @@
     "popup.shortcuts.remove-last-polygon-point": "Remover Último Ponto do Polígono",
     "popup.shortcuts.remove-tool-point": "Remover Ponto de Medida/Orientação Selecionado",
     "popup.shortcuts.stamp-key": "Sobrescrever Chave com a Pose Atual da Câmera",
-    "popup.shortcuts.copy-key": "Arrastar uma Cópia da Chave"
+    "popup.shortcuts.copy-key": "Arrastar uma Cópia da Chave",
+    "animation.layer": "Animation layer",
+    "animation.clip": "Clip",
+    "animation.rate": "Playback rate ×",
+    "animation.seconds": "Time (seconds)",
+    "animation.bind-pose": "Bind pose",
+    "animation.binding-colors": "Binding node colors",
+    "animation.asset-axes": "Asset axes: +X forward · +Y left · +Z up (meters)",
+    "animation.sample": "Sample {{sample}} · source frame {{source}}",
+    "animation.fallbacks": "{{count}} DQ fallbacks",
+    "animation.inspect-one": "Select one Gaussian to inspect its stable ID and four binding slots."
 }

@@ -81,3 +81,21 @@ test('static PLY remains renderable through the shared shader path', async ({ pa
     await page.waitForTimeout(1000);
     expect(errors).toEqual([]);
 });
+
+test('animation controls expose bind pose, colors, source frames and narrow layout', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    await page.goto('/?load=/fixtures/conformance/scene.json');
+    await expect(page.locator('#animation-controls')).toBeVisible();
+    await page.locator('#animation-bind').click();
+    await expect(page.locator('#animation-samples')).toHaveText('Bind pose');
+    await page.locator('#animation-colors').click();
+    await expect(page.locator('#animation-colors')).toHaveClass(/active/);
+    await page.locator('#animation-bind').click();
+    await expect(page.locator('#animation-samples')).toContainText('Sample');
+    await page.setViewportSize({ width: 640, height: 720 });
+    await page.screenshot({ path: 'test-results/animation-controls-narrow.png' });
+    expect(await page.locator('#animation-controls').evaluate(el => el.scrollWidth <= el.clientWidth)).toBeTruthy();
+    expect(errors).toEqual([]);
+});

@@ -37,6 +37,8 @@ class StatusBar extends Container {
             events.fire('statusBar.panelChanged', panel || null);
         };
 
+        events.on('statusBar.setPanel', setActivePanel);
+
         timelineButton.on('click', () => {
             setActivePanel(activePanel === 'timeline' ? '' : 'timeline');
         });

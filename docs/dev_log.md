@@ -62,3 +62,17 @@
 - Remaining: UI, canonical editing/layer sharing, project persistence, posed
   covariance inspector/snapshots, standard BGS export and full tool regressions.
 - Quota checkpoint: 49% remaining, continue.
+
+## M4 — animation timeline and binding preview
+
+- Added native PCUI layer/clip selection, independent playback multiplier, seconds,
+  sample/source-frame labels and distinct bind-pose control. Animation import
+  opens the timeline; controls wrap in narrow windows.
+- Added stable dominant-node preview colors, a matching node legend, asset-axis
+  description and single-selection stable-ID/four-slot inspector. Colors remain
+  preview-only, preserve lock/selection feedback and yield to Overdraw.
+- Added English/Chinese strings; remaining locales retain complete English
+  fallback entries according to the locale key checker.
+- Typecheck, focused lint, 402-key locale check and four WebGPU browser tests
+  pass; the 640px control layout screenshot was visually inspected.
+- Quota checkpoint: 48% remaining. Next: canonical per-instance affine editing.

@@ -117,6 +117,7 @@ struct ProjectorUniforms {
     lockedColor: vec4f,
     visible: u32,
     selectionEnabled: u32,
+    bindingColors: u32,
     pickOp: i32,
     minPixelSize: f32,
     // camera clip planes, used to linearly normalize view depth for the sort key
@@ -448,6 +449,7 @@ fn main(
         graded = applyColorGrade(graded, uniforms.colorRow0, uniforms.colorRow1, uniforms.colorRow2);
     }
     color = vec4f(graded, gradedAlpha);
+    if (uniforms.bindingColors != 0u && hasAnimation()) { color = vec4f(bindingColor(instance), color.a); }
 
     let selected = (state & 1u) != 0u && uniforms.selectionEnabled != 0u;
     let locked = (state & 2u) != 0u;

@@ -2,6 +2,7 @@ import { Button, Container, Element, NumericInput, SelectInput } from '@playcanv
 
 import { Events } from '../events';
 import { ShortcutManager } from '../shortcut-manager';
+import { AnimationControls } from './animation-controls';
 import { i18n } from './localization';
 import { Tooltips } from './tooltips';
 
@@ -462,6 +463,7 @@ class TimelinePanel extends Container {
 
         const ticks = new Ticks(events, tooltips);
 
+        this.append(new AnimationControls(events, tooltips));
         this.append(controlsWrap);
         this.append(ticks);
 

@@ -475,6 +475,7 @@ class ProjectedSplatRenderer {
             new UniformFormat('lockedColor', UNIFORMTYPE_VEC4),
             new UniformFormat('visible', UNIFORMTYPE_UINT),
             new UniformFormat('selectionEnabled', UNIFORMTYPE_UINT),
+            new UniformFormat('bindingColors', UNIFORMTYPE_UINT),
             new UniformFormat('pickOp', UNIFORMTYPE_INT),
             new UniformFormat('minPixelSize', UNIFORMTYPE_FLOAT),
             new UniformFormat('near', UNIFORMTYPE_FLOAT),
@@ -962,6 +963,7 @@ class ProjectedSplatRenderer {
             compute.setParameter('view', view.data);
             compute.setParameter('viewProj', this.viewProjection.data);
             compute.setParameter('cameraPosition', [cameraPosition.x, cameraPosition.y, cameraPosition.z]);
+            compute.setParameter('bindingColors', camera.renderOverlays && !forPick && !this.scene.overdrawRender && this.scene.events.invoke('animation.bindingColors') ? 1 : 0);
             compute.setParameter('previewMode', previewMode);
             compute.setParameter('colorAlpha', previewMode ? this.previewTerms.transparency : 1);
             compute.setParameter('colorRow0', this.previewRows.subarray(0, 4));
