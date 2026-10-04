@@ -1,0 +1,16 @@
+{
+  "status": "passed",
+  "gaussians": 5,
+  "sh_degree": 2,
+  "nodes": 5,
+  "clips": 1,
+  "frames_checked": 3,
+  "animation_bytes": 420,
+  "clip_ranges_nonoverlap": true,
+  "inverse_bind_checked": 5,
+  "weights_checked": 5,
+  "source_id_unique": true,
+  "source_to_scene_scale": 1.0,
+  "source_units_per_meter": 1.0,
+  "manifest_files_checked": 5
+}

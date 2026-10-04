@@ -1,0 +1,66 @@
+{
+  "count": 350000,
+  "assetId": "pick-the-block-so101-bgs-20261004",
+  "target": [
+    1920,
+    1080
+  ],
+  "adapter": {
+    "vendor": "nvidia",
+    "architecture": "lovelace",
+    "device": "",
+    "description": ""
+  },
+  "animated": {
+    "elapsedMs": 4000.1000003814697,
+    "renderedFps": 59.998500031777304,
+    "committedPoseFps": 44.498887523568165,
+    "lastTime": 3.9497999999999966,
+    "gpuTimestampSupported": true,
+    "gpuMedianMs": 11.674624,
+    "gpuP95Ms": 16.628736,
+    "cpuMedianMs": 2.299999713897705,
+    "cpuP95Ms": 3.3000001907348633,
+    "gpuWorkingSet": {
+      "placements": 1,
+      "projectedSplats": 350208,
+      "sourceBytes": 23831552,
+      "editingBytes": 59453940,
+      "cacheBytes": 7009280,
+      "keyBytes": 2801664,
+      "estimatedRadixBytes": 4202496,
+      "totalTransientBytes": 14013440,
+      "totalSplatGpuBytes": 97298932,
+      "submissionCpuMs": 0.3000001907348633,
+      "gpuFrameMs": 8.194048,
+      "motionContribution": 0.06,
+      "occlusionActive": false
+    }
+  },
+  "staticBaseline": {
+    "elapsedMs": 4000.800000190735,
+    "renderedFps": 59.988002396660214,
+    "committedPoseFps": 0,
+    "lastTime": 0,
+    "gpuTimestampSupported": true,
+    "gpuMedianMs": 3.910656,
+    "gpuP95Ms": 4.384768,
+    "cpuMedianMs": 1.9000000953674316,
+    "cpuP95Ms": 3.1999998092651367,
+    "gpuWorkingSet": {
+      "placements": 1,
+      "projectedSplats": 350208,
+      "sourceBytes": 23831552,
+      "editingBytes": 3379376,
+      "cacheBytes": 7009280,
+      "keyBytes": 2801664,
+      "estimatedRadixBytes": 4202496,
+      "totalTransientBytes": 14013440,
+      "totalSplatGpuBytes": 41224368,
+      "submissionCpuMs": 0.2999997138977051,
+      "gpuFrameMs": 3.9086079999999996,
+      "motionContribution": 0.06,
+      "occlusionActive": false
+    }
+  }
+}

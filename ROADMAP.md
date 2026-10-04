@@ -22,9 +22,9 @@ pose edit is conjugated through each Gaussian's rigid deformation.
 - [x] M5: canonical affine edits, undo/redo, deletion and shared-layer operations.
 - [x] M6: animation resources and edit state in backwards-compatible ssproj.
 - [x] M7: static posed snapshots, video synchronisation and BGS round trips.
-- [ ] M8: WebGPU integration/regression tests and 350k synthetic performance report.
-- [ ] M9: real pick-the-block scene acceptance with the supplied complete package.
-- [ ] M10: refined animation workspace: labelled controls, compact status, collapsible
+- [x] M8: WebGPU integration/regression tests and 350k synthetic performance report.
+- [x] M9: real pick-the-block scene acceptance with the supplied complete package.
+- [x] M10: refined animation workspace: labelled controls, compact status, collapsible
   binding inspection, responsive layout and visual/keyboard regression coverage.
 
 ## Engineering risks and acceptance
@@ -58,3 +58,8 @@ docs/HANDOFF.md with commits, changes, tests, reproduction and remaining work.
 The real 350,000-Gaussian pick-the-block package arrived during implementation.
 It contains two experimental clips and fixed one-hot B bindings. Preserve its
 calibration and pre-release limitations; M9 requires actual app/GPU acceptance.
+
+Delivery evidence: docs/animation-acceptance.md records 19 unit checks, 20 hardware
+WebGPU checks, software WebGPU checks, independent exported-file validation,
+real/synthetic 1080p performance and explicit limits. docs/animation.md is the
+user and extension guide. Latest quota checkpoint: 85% remaining.

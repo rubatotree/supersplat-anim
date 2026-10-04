@@ -23,7 +23,8 @@
         "lint:locales": "node scripts/check-locales.mjs",
         "test": "tsx --test tests/*.test.ts",
         "typecheck": "tsc --noEmit",
-        "test:browser": "playwright test"
+        "test:browser": "playwright test",
+        "test:stress": "tsx tests/generate-stress.mts"
     },
     "engines": {
         "node": ">=20.19.0"

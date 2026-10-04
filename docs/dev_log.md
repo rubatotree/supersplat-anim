@@ -175,3 +175,25 @@
   released control locks, late import cancellation and repeated provider disposal.
 - Release typecheck/lint/build pass. Vulkan SwiftShader browser suite: 15 passed,
   four explicitly skipped real/performance checks. Weekly remaining: 85%.
+
+## M8/M9 — final regressions and actual-scene acceptance
+
+- Release hardware WebGPU: 20/20 passed (2.1 minutes). Software WebGPU: 15/15
+  passed with four explicit skips, plus the subsequently added PNG check.
+- Added real edited-subset BGS round trip and full 350,008-instance project
+  reload, all compressed snapshot formats including SOG, constructed legacy
+  v0/v1 projects, posed selection/volume/depth/brush/measurement/orient tools,
+  render overlays, cancellation, repeated imports and keyboard capture protection.
+- Unknown double/uchar PLY attributes retain exact types and values after row
+  reordering, shear and color edits; 19 unit checks pass. Independent reference
+  Python tests 5/5 and JS self-check pass. Input and both actual exported BGS
+  bundles pass reference validation with fresh manifest checks.
+- Recorded separate real/synthetic 350k 1080p reports: approximately 60 render
+  fps and 44.5/47.5 complete pose fps; GPU medians 11.67/11.85ms. Estimated
+  renderer GPU working set 97.30MB animated vs 41.22MB static; not whole-device
+  measured VRAM. Adapter reports NVIDIA Lovelace, no specific device model.
+- Added user/extension guide and acceptance report with original JSON evidence,
+  UI screenshots, precision separation, data quality limits and reproducible
+  commands. CI adds software WebGPU, typecheck and unit checks; remote run status
+  is checked separately after push. M8/M9/M10 local acceptance complete.
+- Weekly remaining: 85%; the 80% hard reserve has been maintained.
