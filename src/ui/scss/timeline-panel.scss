@@ -10,35 +10,160 @@
 
     #animation-controls {
         margin: 0;
-        padding: 6px 12px;
-        background: $bcg-primary;
+        padding: 10px 16px 12px;
+        border-top: 1px solid $bcg-lighter;
+        background: $bcg-dark;
+        .animation-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0 0 8px;
+            > * { margin: 0; }
+        }
+        .animation-title {
+            color: $text-primary;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border-left: 2px solid $clr-hilight;
+            padding-left: 8px;
+        }
+        #animation-status {
+            color: $text-secondary;
+            font-size: 10px;
+            border: 1px solid $bcg-lighter;
+            border-radius: 10px;
+            padding: 1px 8px;
+            &.playing { color: $clr-icon-hilight; border-color: rgba($clr-hilight, 0.4); }
+        }
+        #animation-samples {
+            flex: 1;
+            color: $text-secondary;
+            font-size: 11px;
+            font-variant-numeric: tabular-nums;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #animation-details-toggle {
+            background: transparent;
+            border-color: transparent;
+            color: $text-secondary;
+            font-size: 11px;
+            &::after { content: '⌄'; margin-left: 6px; }
+            &.active { color: $clr-icon-hilight; }
+            &.active::after { content: '⌃'; }
+        }
         .animation-row {
             display: flex;
             flex-wrap: wrap;
-            align-items: center;
-            gap: 5px;
+            align-items: flex-end;
+            gap: 10px 16px;
             margin: 0;
+        }
+        .animation-field {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin: 0;
+            min-width: 0;
             > * { margin: 0; }
-            #animation-layer { width: 210px; }
-            #animation-clip { width: 190px; }
-            #animation-rate { width: 64px; }
-            #animation-time { width: 84px; }
-            button.active { color: $clr-hilight; }
+            > .animation-field-label { color: $text-secondary; font-size: 10px; line-height: 12px; }
+            > .pcui-input-element { width: 100%; box-sizing: border-box; }
+            .pcui-select-input { height: 28px; }
+        }
+        .animation-layer-field { flex: 1.2 1 200px; }
+        .animation-clip-field { flex: 1 1 180px; }
+        .animation-time-field { flex: 0 0 170px; }
+        .animation-rate-field { flex: 0 0 80px; }
+        #animation-time { width: 82px; }
+        #animation-duration {
+            position: absolute;
+            right: 0;
+            bottom: 6px;
+            color: $text-secondary;
+            font-size: 11px;
+            font-variant-numeric: tabular-nums;
+        }
+        .animation-actions {
+            display: flex;
+            gap: 0;
+            margin: 0;
+            button {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                height: 28px;
+                margin: 0;
+                padding: 0 10px;
+                border-radius: 0;
+                font-size: 11px;
+                svg { width: 14px; height: 14px; flex-shrink: 0; }
+                &:first-child { border-radius: 4px 0 0 4px; }
+                &:last-child { border-radius: 0 4px 4px 0; margin-left: -1px; }
+                &.active { color: $clr-icon-hilight; background: rgba($clr-hilight, 0.1); border-color: rgba($clr-hilight, 0.45); z-index: 1; }
+            }
+        }
+        button:focus-visible { outline: 2px solid $clr-icon-hilight; outline-offset: 2px; }
+        #animation-details {
+            margin: 10px 0 0;
+            padding-top: 10px;
+            border-top: 1px solid $bcg-lighter;
         }
         #animation-inspector, #animation-axes {
             display: block;
             white-space: normal;
-            margin: 4px 0;
-            color: $clr-disabled;
+            margin: 0 0 8px;
+            color: $text-secondary;
+            font-size: 11px;
+        }
+        #animation-axes { margin: 8px 0 0; }
+        .animation-gaussian-id { margin-bottom: 6px; color: $text-primary; font-variant-numeric: tabular-nums; }
+        .animation-binding-slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+        .animation-binding-slot {
+            padding: 6px 8px;
+            background: $bcg-primary;
+            border-radius: 4px;
+            span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        }
+        .animation-weight-track {
+            height: 3px;
+            margin-top: 6px;
+            background: $bcg-darkest;
+            border-radius: 2px;
+            overflow: hidden;
+            i { display: block; height: 100%; }
         }
         #animation-legend {
             display: flex;
             flex-wrap: wrap;
-            gap: 6px 14px;
-            margin: 4px 0;
+            gap: 6px;
+            margin: 0;
             font-size: 11px;
-            span { display: inline-flex; align-items: center; gap: 5px; }
-            i { width: 8px; height: 8px; border-radius: 2px; }
+            span {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 4px 8px;
+                border-radius: 4px;
+                background: $bcg-primary;
+                max-width: 100%;
+                overflow-wrap: anywhere;
+            }
+            i { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        }
+        @media (max-width: 720px) {
+            padding: 8px 12px;
+            .animation-layer-field, .animation-clip-field { flex-basis: calc(50% - 16px); }
+            .animation-time-field { flex-basis: 156px; }
+            .animation-row { gap: 8px 12px; }
+            .animation-binding-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 430px) {
+            #animation-samples { display: none; }
+            #animation-details-toggle { margin-left: auto; }
+            .animation-actions { width: 100%; }
         }
     }
 
@@ -47,7 +172,10 @@
         flex-direction: row;
         background-color: $bcg-primary;
         justify-content: center;
-        padding: 1px;
+        padding: 6px 12px;
+        border-top: 1px solid $bcg-lighter;
+        gap: 8px;
+        .timeline-caption { font-size: 11px; color: $text-secondary; margin: 0; }
 
         > #button-controls {
             display: flex;
@@ -85,6 +213,8 @@
             flex-grow: 1;
             flex-basis: 0;
             justify-content: flex-end;
+            align-items: center;
+            &:first-child { justify-content: flex-start; }
 
             > #settings-controls {
                 display: flex;
@@ -136,6 +266,16 @@
                     }
                 }
             }
+        }
+    }
+
+    @media (max-width: 720px) {
+        > #controls-wrap {
+            flex-wrap: wrap;
+            justify-content: space-between;
+            > .spacer { flex: 0 1 auto; }
+            > .spacer:first-child { display: none; }
+            #smoothness, #totalFrames { display: none; }
         }
     }
 

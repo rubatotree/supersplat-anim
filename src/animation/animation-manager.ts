@@ -106,6 +106,7 @@ const registerAnimationEvents = (scene: Scene): void => {
         try {
             await events.invoke('queue', () => scene.add(splat));
             if (loadGeneration !== generation) throw new DOMException('Animation import cancelled by scene clear', 'AbortError');
+            splat.name = data.scene.asset.name;
             await events.invoke('animation.prepare', events.invoke('timeline.seconds'));
         } catch (error) {
             splat.destroy();

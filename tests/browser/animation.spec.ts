@@ -89,11 +89,16 @@ test('animation controls expose bind pose, colors, source frames and narrow layo
     page.on('pageerror', error => errors.push(error.message));
     page.on('console', message => { if (message.type() === 'error') { errors.push(message.text()); console.error(message.text()); } });
     await page.goto('/?load=/fixtures/conformance/scene.json');
+    await page.waitForFunction(() => (window as any).scene?.elements.some((s: any) => s.animation?.frame));
     await expect(page.locator('#animation-controls')).toBeVisible();
+    await expect(page.locator('#animation-details')).toBeHidden();
+    await page.locator('#animation-details-toggle').press('Enter');
+    await expect(page.locator('#animation-details-toggle')).toHaveAttribute('aria-expanded', 'true');
     await page.locator('#animation-bind').click();
     await expect(page.locator('#animation-samples')).toHaveText('Bind pose');
     await page.locator('#animation-colors').click();
     await expect(page.locator('#animation-colors')).toHaveClass(/active/);
+    await expect(page.locator('#animation-colors')).toHaveAttribute('aria-pressed', 'true');
     await page.locator('#animation-bind').click();
     await expect(page.locator('#animation-samples')).toContainText('Sample');
     const inspector = await page.evaluate(async () => {
@@ -112,10 +117,27 @@ test('animation controls expose bind pose, colors, source frames and narrow layo
             return `${splat.animation.provider.data.scene.nodes[node].name}: ${weight.toFixed(4)}`;
         }).join(' · ');
     });
-    await expect(page.locator('#animation-inspector')).toContainText(inspector);
+    for (const slot of inspector.split(' · ')) await expect(page.locator('#animation-inspector')).toContainText(slot);
     await page.setViewportSize({ width: 640, height: 720 });
     await page.screenshot({ path: 'test-results/animation-controls-narrow.png' });
     expect(await page.locator('#animation-controls').evaluate(el => el.scrollWidth <= el.clientWidth)).toBeTruthy();
+    await page.locator('#animation-details-toggle').click();
+    await page.setViewportSize({ width: 390, height: 720 });
+    expect(await page.locator('#animation-controls').evaluate(el => el.scrollWidth <= el.clientWidth)).toBeTruthy();
+    await page.screenshot({ path: 'test-results/animation-controls-mobile.png' });
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.evaluate(() => {
+        const language = Array.from(document.querySelectorAll('.pcui-select-input')).find((el: any) =>
+            el.ui?.options?.some((option: any) => option.v === 'zh-CN')) as any;
+        language.ui.value = 'zh-CN';
+        (window as any).scene.events.fire('select.none');
+    });
+    await expect(page.locator('#animation-details-toggle')).toHaveText('绑定详情');
+    await page.locator('#animation-details-toggle').click();
+    await expect(page.locator('#animation-inspector')).toContainText('选择单个高斯');
+    expect(await page.locator('#animation-bind svg').count()).toBe(1);
+    expect(await page.locator('#animation-colors svg').count()).toBe(1);
+    await page.screenshot({ path: 'test-results/animation-controls-desktop-zh.png' });
     expect(errors).toEqual([]);
 });
 

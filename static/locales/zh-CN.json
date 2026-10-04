@@ -403,5 +403,10 @@
     "animation.inspect-one": "选择单个高斯以查看稳定 ID 和四槽绑定权重。",
     "animation.export-bgs": "绑定高斯场景（.bgs.zip）",
     "animation.snapshot-note": "动画图层将导出为当前求值姿态的静态快照。查看器的相机动画不包含高斯运动。",
-    "animation.bgs-export-note": "导出选中动画图层、绑定及全部片段，使用标准资产坐标。编辑器中的图层摆放由 ssproj 保存，不会烘焙到 BGS。"
+    "animation.bgs-export-note": "导出选中动画图层、绑定及全部片段，使用标准资产坐标。编辑器中的图层摆放由 ssproj 保存，不会烘焙到 BGS。",
+    "animation.title": "动画",
+    "animation.details": "绑定详情",
+    "animation.playing": "播放中",
+    "animation.paused": "已暂停",
+    "animation.timeline": "时间轴"
 }

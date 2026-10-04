@@ -148,3 +148,21 @@
   including posed queries, 100 rapid seeks across two layers and exact video
   frames. Additional tool/performance tests are being recorded separately.
 - Quota checkpoint: 46% remaining; no bottom-line quota reached.
+
+## M10 — refined animation workspace
+
+- User raised the weekly reserve to 80% after upgrading the account. Fresh
+  telemetry was 87% remaining, reset 2026-10-10 05:27:42 UTC; a new ledger
+  permits 7 points of usage with a 1.75-point handoff reserve. Latest: 86%.
+- Replaced the unlabelled control strip with a compact animation header, playing
+  state, sample metadata, labelled layer/clip/time/rate fields and clip duration.
+  Bind pose and binding colors use native icons and pressed-state feedback.
+- Binding details collapse by default; selected Gaussian slots show exact stored
+  weights as four readable cards with bars, alongside stable IDs, node legend and
+  asset axes. Imported layers use the asset name. Timeline controls have keyboard
+  labels, responsive settings and capture-time disabling.
+- Updated English/Chinese strings and complete locale fallbacks (410 keys).
+  Desktop, 640px and 390px layout checks pass, as do keyboard disclosure, pressed
+  states and live Chinese localization with preserved icons.
+- Typecheck, full lint, locales, 19 unit tests and release build pass. Full release
+  browser coverage and final acceptance records are being completed next.

@@ -23,7 +23,9 @@ pose edit is conjugated through each Gaussian's rigid deformation.
 - [x] M6: animation resources and edit state in backwards-compatible ssproj.
 - [x] M7: static posed snapshots, video synchronisation and BGS round trips.
 - [ ] M8: WebGPU integration/regression tests and 350k synthetic performance report.
-- [ ] M9: real pick-the-block scene acceptance when its complete BGS package arrives.
+- [ ] M9: real pick-the-block scene acceptance with the supplied complete package.
+- [ ] M10: refined animation workspace: labelled controls, compact status, collapsible
+  binding inspection, responsive layout and visual/keyboard regression coverage.
 
 ## Engineering risks and acceptance
 
@@ -46,9 +48,10 @@ Use atomic Conventional Commits, verify each logical milestone, then push to
 origin/main without force. Update docs/dev_log.md at each checkpoint.
 No large production assets or ntfy notifications are included.
 
-Weekly quota baseline: 48% used / 52% remaining. Hard ceiling: 68% used.
-Start handoff at 63% used, retain 5 percentage points for verification and
-handoff. Refresh the seven-day meter before/after material units; stop if the
+Updated quota after the user's account upgrade: 13% used / 87% remaining.
+Hard ceiling: 20% used (retain 80%); work ceiling: 18.25% used, with a 1.75
+percentage-point reserve for verification and handoff. The earlier 32% rule
+is superseded. Refresh the seven-day meter before/after material units; stop if the
 meter becomes unavailable or the ceiling is reached. On early stop write
 docs/HANDOFF.md with commits, changes, tests, reproduction and remaining work.
 

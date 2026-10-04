@@ -1,4 +1,4 @@
-import { Button, Container, Element, NumericInput, SelectInput } from '@playcanvas/pcui';
+import { Button, Container, Element, Label, NumericInput, SelectInput } from '@playcanvas/pcui';
 
 import { Events } from '../events';
 import { ShortcutManager } from '../shortcut-manager';
@@ -428,6 +428,7 @@ class TimelinePanel extends Container {
 
         events.on('timeline.loop', (loopIn: boolean) => {
             loop.class[loopIn ? 'add' : 'remove']('active');
+            loop.dom.setAttribute('aria-pressed', String(loopIn));
         });
 
         if (events.invoke('timeline.loop')) {
@@ -460,6 +461,9 @@ class TimelinePanel extends Container {
         controlsWrap.append(spacerL);
         controlsWrap.append(buttonControls);
         controlsWrap.append(spacerR);
+        const timelineLabel = new Label({ class: 'timeline-caption' });
+        i18n.bindText(timelineLabel, 'animation.timeline');
+        spacerL.append(timelineLabel);
 
         const ticks = new Ticks(events, tooltips);
 
@@ -549,13 +553,6 @@ class TimelinePanel extends Container {
             updateKeyButtonStates();
         });
 
-        // cancel animation playback if user interacts with camera
-        events.on('camera.controller', (type: string) => {
-            if (events.invoke('timeline.playing')) {
-                // stop
-            }
-        });
-
         // tooltips
         const shortcutManager: ShortcutManager = events.invoke('shortcutManager');
         const tooltip = (localeKey: string, shortcutId?: string) => () => {
@@ -578,6 +575,19 @@ class TimelinePanel extends Container {
         tooltips.register(frames, () => i18n.t('tooltip.timeline.total-frames'), 'top');
         tooltips.register(smoothness, () => i18n.t('tooltip.timeline.smoothness'), 'top');
         tooltips.register(loop, () => i18n.t('tooltip.timeline.loop'), 'top');
+        const accessibleControls: [Element, string][] = [
+            [prev, 'tooltip.timeline.prev-frame'], [play, 'tooltip.timeline.play'], [next, 'tooltip.timeline.next-frame'],
+            [addKey, 'tooltip.timeline.add-key'], [removeKey, 'tooltip.timeline.remove-key'],
+            [speed, 'tooltip.timeline.frame-rate'], [frames, 'tooltip.timeline.total-frames'],
+            [smoothness, 'tooltip.timeline.smoothness'], [loop, 'tooltip.timeline.loop']
+        ];
+        i18n.onChange(() => accessibleControls.forEach(([control, key]) => {
+            control.dom.setAttribute('aria-label', i18n.t(key));
+            control.dom.querySelector('input')?.setAttribute('aria-label', i18n.t(key));
+        }));
+        events.on('animation.capture', (capturing: boolean) => {
+            controlsWrap.enabled = ticks.enabled = !capturing;
+        });
     }
 }
 
