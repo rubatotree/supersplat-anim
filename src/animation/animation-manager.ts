@@ -30,6 +30,7 @@ const registerAnimationEvents = (scene: Scene): void => {
     let pending: number | null = null;
     let draining = false;
     let captureDepth = 0;
+    events.function('animation.capturing', () => captureDepth > 0);
     let generation = 0;
     let revision = 0;
     events.on('animation.captureBegin', () => {

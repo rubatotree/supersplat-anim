@@ -152,7 +152,7 @@
 ## M10 — refined animation workspace
 
 - User raised the weekly reserve to 80% after upgrading the account. Fresh
-  telemetry was 87% remaining, reset 2026-10-10 05:27:42 UTC; a new ledger
+  telemetry was 87% remaining, reset 2026-10-09 21:27:42 UTC; a new ledger
   permits 7 points of usage with a 1.75-point handoff reserve. Latest: 86%.
 - Replaced the unlabelled control strip with a compact animation header, playing
   state, sample metadata, labelled layer/clip/time/rate fields and clip duration.
@@ -166,3 +166,12 @@
   states and live Chinese localization with preserved icons.
 - Typecheck, full lint, locales, 19 unit tests and release build pass. Full release
   browser coverage and final acceptance records are being completed next.
+
+## Capture keyboard and cancellation checkpoint
+
+- Capture now blocks canvas editing shortcuts while still allowing key release;
+  a focused canvas cannot delete bound instances between captured frames.
+- Regression covers Delete during capture, scene clear during video export,
+  released control locks, late import cancellation and repeated provider disposal.
+- Release typecheck/lint/build pass. Vulkan SwiftShader browser suite: 15 passed,
+  four explicitly skipped real/performance checks. Weekly remaining: 85%.

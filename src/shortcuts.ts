@@ -84,6 +84,9 @@ class Shortcuts {
         const shortcuts = this.shortcuts;
 
         const handleEvent = (e: KeyboardEvent, down: boolean, capture: boolean) => {
+            // A capture may yield between frames with focus still in the canvas.
+            // Modal pointer blocking alone cannot protect its geometry from keys.
+            if (down && events.functions.has('animation.capturing') && events.invoke('animation.capturing')) return;
             // skip keys owned by the focused element (text entry, modals, control keys)
             if (targetConsumesKey(e)) return;
 
