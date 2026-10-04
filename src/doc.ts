@@ -199,7 +199,7 @@ const registerDocEvents = (scene: Scene, events: Events) => {
                         splat.animation.bindPose = !!splatSettings.animation.bindPose;
                     }
 
-                    await scene.add(splat);
+                    await events.invoke('queue', () => scene.add(splat));
                     splat.docDeserialize(splatSettings);
                 }
             } else {
@@ -213,7 +213,7 @@ const registerDocEvents = (scene: Scene, events: Events) => {
                     const splat = await scene.assetLoader.load(filename, zipFs, false, true);
                     documentResources.add(splat.resource);
 
-                    await scene.add(splat);
+                    await events.invoke('queue', () => scene.add(splat));
 
                     splat.docDeserialize(splatSettings);
                 }

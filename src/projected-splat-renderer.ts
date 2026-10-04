@@ -1157,7 +1157,8 @@ class ProjectedSplatRenderer {
         }, 0);
         // the instance list (source row + flags + palette indices) is the whole
         // of the per-gaussian editable data now
-        const editingBytes = Array.from(splats).reduce((sum, splat) => sum + splat.instances.byteSize, 0);
+        const editingBytes = Array.from(splats).reduce((sum, splat) => sum + splat.instances.byteSize +
+            splat.transformPalette.texture.gpuSize + splat.colorPalette.texture.gpuSize + (splat.animation?.gpuBytes ?? 0), 0);
         const totalTransientBytes = cacheBytes + keyBytes + estimatedRadixBytes;
         return {
             placements: this.placements.length,

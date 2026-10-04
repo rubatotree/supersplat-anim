@@ -6,7 +6,15 @@ import type { Splat } from '../splat';
 import { i18n } from './localization';
 import type { Tooltips } from './tooltips';
 
-const nodeColor = (node: number): string => (node === 0 ? '#7a7a7a' : `hsl(${((node * 0.61803398875) % 1) * 360} 65% 60%)`);
+const nodeColor = (node: number): string => {
+    if (node === 0) return '#7a7a7a';
+    const hue = (node * 0.61803398875) % 1;
+    const rgb = [0, 2 / 3, 1 / 3].map((offset) => {
+        const channel = Math.max(0, Math.min(1, Math.abs(((hue + offset) % 1) * 6 - 3) - 1));
+        return Math.round((0.35 + 0.65 * channel) * 0.9 * 255);
+    });
+    return `rgb(${rgb.join(' ')})`;
+};
 
 class AnimationControls extends Container {
     constructor(events: Events, tooltips: Tooltips) {
@@ -55,9 +63,15 @@ class AnimationControls extends Container {
                 return;
             }
             const row = active.animation.sourceRows[active.instances.sourceRow[selectedInstance]];
+            const g = data.gaussians;
+            const bytes = new DataView(g.bytes.buffer, g.bytes.byteOffset, g.bytes.byteLength);
+            const offset = g.headerBytes + row * g.stride;
             const slots = Array.from({ length: 4 }, (_, slot) => {
-                const index = row * 4 + slot;
-                return `${data.scene.nodes[data.gaussians.bindNodes[index]].name}: ${data.gaussians.bindWeights[index].toFixed(4)}`;
+                // Evaluation merges duplicate influences; inspection shows the
+                // actual four authored slots retained in the source PLY.
+                const node = bytes.getUint32(offset + g.properties.find(p => p.name === `bind_node_${slot}`).offset, true);
+                const weight = bytes.getFloat32(offset + g.properties.find(p => p.name === `bind_weight_${slot}`).offset, true);
+                return `${data.scene.nodes[node].name}: ${weight.toFixed(4)}`;
             });
             inspector.text = `ID ${data.gaussians.sourceIds[row]} · ${slots.join(' · ')}`;
         };
@@ -143,6 +157,9 @@ class AnimationControls extends Container {
         });
         colors.on('click', () => events.fire('animation.setBindingColors', !events.invoke('animation.bindingColors')));
         events.on('animation.bindingColors', (value: boolean) => colors.class.toggle('active', value));
+        events.on('animation.capture', (active: boolean) => {
+            this.enabled = !active;
+        });
         const names = ['layer', 'clip', 'rate', 'seconds', 'bind-pose', 'binding-colors'];
         [layer, clip, rate, time, bind, colors].forEach((element, index) => {
             tooltips.register(element, () => i18n.t(`animation.${names[index]}`), 'top');

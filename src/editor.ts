@@ -284,6 +284,7 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
     // camera.focus
 
     events.on('camera.focus', () => {
+        events.fire('animation.freeze');
         events.fire('camera.setControlMode', 'orbit');
 
         // the active tool's focus target (e.g. orient points) takes precedence
@@ -576,6 +577,7 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
     });
 
     events.function('select.rect', async (op: 'add'|'remove'|'set'|'intersect', rect: any) => {
+        events.fire('animation.freeze');
         const method = selectionMethod();
         const footprint = events.invoke('selection.footprint') as number;
 
@@ -623,6 +625,7 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
     };
 
     events.function('select.byMask', async (op: 'add'|'remove'|'set'|'intersect', canvas: HTMLCanvasElement, context: CanvasRenderingContext2D) => {
+        events.fire('animation.freeze');
         const method = selectionMethod();
 
         // snapshot everything the stroke depends on before yielding - the
@@ -714,6 +717,7 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
         points: { x: number, y: number, radius: number }[],
         canvas: HTMLCanvasElement
     ) => {
+        events.fire('animation.freeze');
         const splats = selectedSplats();
 
         // snapshot everything gesture-dependent now: the shared stroke canvas
@@ -773,6 +777,7 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
     });
 
     events.function('select.point', async (op: 'add'|'remove'|'set'|'intersect', point: { x: number, y: number }) => {
+        events.fire('animation.freeze');
         const { width, height } = scene.targetSize;
         const method = selectionMethod();
         const footprint = events.invoke('selection.footprint') as number;
@@ -816,6 +821,7 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
     // -  alternative distance metrics such as HSV.
     // -  alternative UI for threshold, two handles for min/max?
     events.function('select.colorMatch', async (op: 'add'|'remove'|'set'|'intersect', point: { x: number, y: number }, threshold = 0) => {
+        events.fire('animation.freeze');
         const splats = selectedSplats();
         const targetSize = scene.targetSize;
         if (!splats.length || !targetSize || !point) {

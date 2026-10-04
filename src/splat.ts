@@ -444,7 +444,7 @@ class Splat extends Element {
     }
 
     get visible() {
-        return this._visible;
+        return this._visible && (!this.animation || !!this.animation.frame);
     }
 
     // get pivot position/rotation/scale (caller should have awaited operation that changed data)

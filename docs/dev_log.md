@@ -129,3 +129,22 @@
   took 4.2s after avoiding serialization of oversized pooled buffers.
 - Quota checkpoint: 47% remaining. Next: complete posed data inspection, regression
   coverage, GPU identity/performance and real-scene acceptance evidence.
+
+## Shared pose and lifecycle corrections
+
+- Posed scale/quaternion data queries now recover full affine covariance using
+  GPU principal axes when needed. Measured relative covariance error on packed
+  GPU data is 1.6042e-5; this is separate from the CPU double-precision oracle.
+- Layer poses and bounds publish together. Rapid seeks discard superseded work;
+  ordinary playback coalesces queued times without cancelling every in-flight
+  GPU reduction. Stress measurements exposed that cancellation starvation and
+  the real scene now commits about 46 poses/s (final report to follow).
+- Selection function entries, depth picking, focus, color edits and reset freeze
+  playback. Exact captures lock animation controls and restore viewport time;
+  scene clear invalidates pending imports and cancels video capture.
+- Duration in seconds survives frame-rate changes. The inspector reads all four
+  original PLY binding slots, and legend colors use the GPU's color definition.
+- 19 unit tests, typecheck and full lint pass. Ten core browser checks passed,
+  including posed queries, 100 rapid seeks across two layers and exact video
+  frames. Additional tool/performance tests are being recorded separately.
+- Quota checkpoint: 46% remaining; no bottom-line quota reached.

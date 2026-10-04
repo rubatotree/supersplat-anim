@@ -293,6 +293,11 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
         });
     };
 
+    let importGeneration = 0;
+    events.on('scene.clear', () => {
+        importGeneration++;
+    });
+
     // import splat model(s) - handles single files, SOG, and LCC formats
     const importSplatModel = async (files: ImportFile[], animationFrame: boolean) => {
         try {
@@ -324,7 +329,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
                 return null;
             }
             model.resource.fileSources = fileSystem.sources;
-            await scene.add(model);
+            await events.invoke('queue', () => scene.add(model));
             return model;
         } catch (error) {
             const displayName = files[0]?.filename ?? 'unknown';
@@ -337,6 +342,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
         const filenames = files.map(f => f.filename.toLowerCase());
 
         const result: Splat[] = [];
+        const generation = importGeneration;
         const sceneIndex = filenames.findIndex(name => name === 'scene.json' || name.endsWith('/scene.json'));
         if (sceneIndex >= 0 || (files.length === 1 && filenames[0].endsWith('.zip'))) {
             try {
@@ -357,11 +363,12 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
                         urls ? urls.createSource(name) : Promise.reject(new Error(`Missing BGS resource: ${name}`))) };
                     data = await loadBgs(fileSystem, main.contents ? main.filename : main.filename.split('/').pop());
                 }
+                if (generation !== importGeneration) throw new DOMException('Animation import cancelled', 'AbortError');
                 result.push(await events.invoke('animation.import', data));
                 recordImports(files);
                 return result;
             } catch (error) {
-                await showLoadError(error.message ?? String(error), files[sceneIndex < 0 ? 0 : sceneIndex].filename);
+                if (error.name !== 'AbortError') await showLoadError(error.message ?? String(error), files[sceneIndex < 0 ? 0 : sceneIndex].filename);
                 return result;
             }
         }
@@ -765,6 +772,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
     });
 
     events.function('scene.write', async (fileType: FileType, options: SceneExportOptions, stream?: FileSystemWritableFileStream) => {
+        events.fire('animation.captureBegin');
         // SOG, SPZ and viewer exports have their own progress UI, other formats use spinner
         const useSpinner = fileType !== 'sog' && fileType !== 'spz' && fileType !== 'htmlViewer' && fileType !== 'packageViewer';
 
@@ -849,6 +857,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
             }
             return false;
         } finally {
+            events.fire('animation.captureEnd');
             if (useSpinner) {
                 events.fire('stopSpinner');
             }

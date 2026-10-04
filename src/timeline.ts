@@ -7,8 +7,9 @@ const registerTimelineEvents = (events: Events) => {
     let frameRate = 30;
     let smoothness = 1;
     let frame = 0;
+    let explicitDuration = false;
 
-    const publishTime = (force = false) => {
+    const publishTime = (force = false, playbackTick = false) => {
         const nextFrame = Math.min(frames - 1, Math.floor(clock.time * frameRate + 1e-9));
         if (force || nextFrame !== frame) {
             frame = nextFrame;
@@ -16,7 +17,7 @@ const registerTimelineEvents = (events: Events) => {
         }
         // Camera tracks consume fractional frames; providers consume seconds.
         events.fire('timeline.time', Math.min(clock.time * frameRate, frames - 1));
-        events.fire('timeline.seconds', clock.time);
+        events.fire('timeline.seconds', clock.time, playbackTick);
     };
     const setPlaying = (value: boolean) => {
         if (value === clock.playing) return;
@@ -35,6 +36,7 @@ const registerTimelineEvents = (events: Events) => {
     const setFrames = (value: number) => {
         if (!Number.isFinite(value) || value < 1) return;
         frames = Math.floor(value);
+        explicitDuration = false;
         clock.setDuration(frames / frameRate);
         publishTime();
         events.fire('timeline.frames', frames);
@@ -59,6 +61,7 @@ const registerTimelineEvents = (events: Events) => {
     events.on('timeline.setDuration', (value: number) => {
         if (!Number.isFinite(value) || value <= 0) return;
         clock.setDuration(value);
+        explicitDuration = true;
         frames = Math.max(1, Math.ceil(value * frameRate));
         publishTime();
         events.fire('timeline.frames', frames);
@@ -66,7 +69,13 @@ const registerTimelineEvents = (events: Events) => {
     events.on('timeline.setFrameRate', (value: number) => {
         if (!Number.isFinite(value) || value <= 0) return;
         frameRate = value;
-        clock.setDuration(frames / frameRate);
+        if (explicitDuration) {
+            const keys = events.functions.has('track.keys') ? events.invoke('track.keys') as number[] : [];
+            const duration = Math.max(clock.duration, (Math.max(-1, ...keys) + 1) / frameRate);
+            clock.setDuration(duration);
+            frames = Math.max(1, Math.ceil(duration * frameRate));
+            events.fire('timeline.frames', frames);
+        } else clock.setDuration(frames / frameRate);
         publishTime();
         events.fire('timeline.frameRate', frameRate);
     });
@@ -89,7 +98,7 @@ const registerTimelineEvents = (events: Events) => {
     events.on('update', (dt: number) => {
         if (!clock.playing) return;
         clock.advance(dt);
-        publishTime();
+        publishTime(false, true);
         if (!clock.playing) events.fire('timeline.playing', false);
     });
 
@@ -124,7 +133,8 @@ const registerTimelineEvents = (events: Events) => {
         loop: clock.loop,
         seconds: clock.time,
         duration: clock.duration,
-        playbackRate: clock.rate
+        playbackRate: clock.rate,
+        durationExplicit: explicitDuration
     }));
     events.function('docDeserialize.timeline', (data: any = {}) => {
         setPlaying(false);
@@ -134,6 +144,7 @@ const registerTimelineEvents = (events: Events) => {
         clock.loop = data.loop ?? true;
         clock.rate = Number.isFinite(data.playbackRate) && data.playbackRate > 0 ? data.playbackRate : 1;
         clock.setDuration(data.duration ?? frames / frameRate);
+        explicitDuration = data.durationExplicit ?? Number.isFinite(data.duration);
         clock.seek(data.seconds ?? (data.frame ?? 0) / frameRate);
         events.fire('timeline.frames', frames);
         events.fire('timeline.frameRate', frameRate);

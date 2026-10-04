@@ -836,6 +836,7 @@ class Camera extends Element {
         pose?: { position: Vec3, rotation: Quat, orthoHeight: number, near: number, far: number }
     ) {
         const { scene } = this;
+        scene.events.fire('animation.freeze');
         const closestDepths = points.map(() => Infinity);
         const closestSplats: (Splat | null)[] = new Array(points.length).fill(null);
 
@@ -960,6 +961,7 @@ class Camera extends Element {
 
     // render picker contents
     pickPrep(splat: Splat, mode: 'add' | 'remove' | 'set' | 'intersect') {
+        this.scene.events.fire('animation.freeze');
         this.picker.prepareId(splat, mode);
     }
 

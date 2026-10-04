@@ -150,6 +150,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
 
     events.function('render.image', async (imageSettings: ImageSettings, fileStream?: FileSystemWritableFileStream) => {
         events.fire('startSpinner');
+        events.fire('animation.captureBegin');
 
         let equirect: EquirectRenderer | null = null;
         let savedFov = 0;
@@ -332,16 +333,22 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             scene.camera.clearPass.setClearColor(nullClr);
             scene.forceRender = true;       // repaint the viewport with normal rendering
 
+            events.fire('animation.captureEnd');
             events.fire('stopSpinner');
         }
     });
 
     events.function('render.video', (videoSettings: VideoSettings, fileStream: FileSystemWritableFileStream) => {
         const renderImpl = async () => {
+            events.fire('animation.captureBegin');
+            const restoreTime = events.invoke('timeline.seconds') as number;
             events.fire('progressStart', i18n.t('panel.render.render-video'), true);
 
             let cancelled = false;
             const cancelHandler = events.on('progressCancel', () => {
+                cancelled = true;
+            });
+            const clearHandler = events.on('scene.clear', () => {
                 cancelled = true;
             });
 
@@ -735,6 +742,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
                     encoder.close();
                 }
                 cancelHandler.off();
+                clearHandler.off();
 
                 if (equirect) {
                     scene.camera.setPoseOverride(null);
@@ -752,7 +760,13 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
                 scene.lockedRenderMode = false;
                 scene.forceRender = true;       // camera likely moved, finish with normal render
 
-                events.fire('progressEnd');
+                try {
+                    await events.invoke('animation.prepare', restoreTime);
+                    events.fire('timeline.time', restoreTime * events.invoke('timeline.frameRate'));
+                } finally {
+                    events.fire('animation.captureEnd');
+                    events.fire('progressEnd');
+                }
             }
         };
 

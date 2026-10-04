@@ -96,6 +96,23 @@ test('animation controls expose bind pose, colors, source frames and narrow layo
     await expect(page.locator('#animation-colors')).toHaveClass(/active/);
     await page.locator('#animation-bind').click();
     await expect(page.locator('#animation-samples')).toContainText('Sample');
+    const inspector = await page.evaluate(async () => {
+        const scene = (window as any).scene;
+        const splat = scene.events.invoke('animation.layers')[0];
+        const mask = new Uint8Array(splat.instances.count); mask[0] = 255;
+        scene.events.fire('select.mask', 'set', mask);
+        await scene.events.invoke('queue', () => {});
+        const g = splat.animation.provider.data.gaussians;
+        const row = splat.animation.sourceRows[splat.instances.sourceRow[0]];
+        const view = new DataView(g.bytes.buffer, g.bytes.byteOffset, g.bytes.byteLength);
+        return Array.from({ length: 4 }, (_, k) => {
+            const offset = g.headerBytes + row * g.stride;
+            const node = view.getUint32(offset + g.properties.find((p: any) => p.name === `bind_node_${k}`).offset, true);
+            const weight = view.getFloat32(offset + g.properties.find((p: any) => p.name === `bind_weight_${k}`).offset, true);
+            return `${splat.animation.provider.data.scene.nodes[node].name}: ${weight.toFixed(4)}`;
+        }).join(' · ');
+    });
+    await expect(page.locator('#animation-inspector')).toContainText(inspector);
     await page.setViewportSize({ width: 640, height: 720 });
     await page.screenshot({ path: 'test-results/animation-controls-narrow.png' });
     expect(await page.locator('#animation-controls').evaluate(el => el.scrollWidth <= el.clientWidth)).toBeTruthy();
@@ -311,5 +328,122 @@ test('static posed snapshot and standard BGS export re-import correctly', async 
         transformCovariance(original.matrix, gaussianCovariance(original.rotation, original.scales), target);
         actual.forEach((value, k) => expect(value).toBeCloseTo(target[k], 5));
     }
+    expect(errors).toEqual([]);
+});
+
+test('posed data queries reconstruct the edited covariance and keep color preview separate', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('console', message => { if (message.type() === 'error') { errors.push(message.text()); console.error(message.text()); } });
+    await page.goto('/?load=/fixtures/conformance/scene.json');
+    await page.waitForFunction(() => (window as any).scene?.elements.some((s: any) => s.animation?.frame));
+    const result = await page.evaluate(async () => {
+        const scene = (window as any).scene;
+        const events = scene.events;
+        const wait = () => events.invoke('queue', () => {});
+        events.fire('timeline.setSeconds', 0.7);
+        await events.invoke('animation.prepare', 0.7);
+        events.fire('select.all'); await wait();
+        const pivot = events.invoke('pivot');
+        const transform = pivot.transform.clone();
+        transform.rotation.setFromEulerAngles(15, 25, 35);
+        transform.scale.set(1.5, 0.8, 1.2);
+        pivot.start(); pivot.move(transform); pivot.end(); await wait();
+        const splat = events.invoke('selection');
+        const row = 2;
+        const instance = splat.animation.sourceRows.findIndex((value: number) => value === row);
+        const mask = new Uint8Array(splat.instances.count).fill(255); mask[instance] = 0;
+        events.fire('select.mask', 'set', mask); await wait();
+        events.fire('select.hide'); await wait();
+        const options = { entityMatrix: splat.entity.getWorldTransform(), cameraWorldPos: scene.camera.position };
+        const properties: number[] = [];
+        for (const property of [9, 10, 11, 14, 15, 16, 17]) {
+            const histogram = await scene.dataProcessor.calcHistogram(splat, property, options);
+            if (histogram.numValues !== 1) throw new Error('Expected one visible Gaussian in inspector test');
+            properties.push(histogram.min);
+        }
+        const colorBefore = await scene.dataProcessor.calcHistogram(splat, 5, options);
+        events.fire('animation.setBindingColors', true);
+        const colorAfter = await scene.dataProcessor.calcHistogram(splat, 5, options);
+        const matrix = splat.entity.getWorldTransform().clone();
+        splat.animation.readMatrix(instance, matrix);
+        matrix.mul2(splat.entity.getWorldTransform(), matrix);
+        const g = splat.animation.provider.data.gaussians;
+        return { properties, matrix: Array.from(matrix.data), rotation: Array.from(g.rotations.subarray(row * 4, row * 4 + 4)),
+            scales: Array.from(g.logScales.subarray(row * 3, row * 3 + 3)), sameColor: colorBefore.min === colorAfter.min };
+    });
+    const [sx, sy, sz, w, x, y, z] = result.properties;
+    const actual = gaussianCovariance([x, y, z, w], [Math.log(sx), Math.log(sy), Math.log(sz)]);
+    const expected = new Float64Array(9);
+    transformCovariance(result.matrix, gaussianCovariance(result.rotation, result.scales), expected);
+    const magnitude = Math.max(...expected.map(Math.abs));
+    const relativeError = Math.max(...actual.map((value, i) => Math.abs(value - expected[i]) / magnitude));
+    console.log('packed GPU covariance query relative error', relativeError);
+    expect(relativeError).toBeLessThan(0.005);
+    expect(result.sameColor).toBeTruthy();
+    expect(errors).toEqual([]);
+});
+
+test('rapid seeks publish only the latest time on every layer and failed poses stay valid', async ({ page }) => {
+    await page.goto('/?load=/fixtures/conformance/scene.json');
+    await page.waitForFunction(() => (window as any).scene?.elements.some((s: any) => s.animation?.frame));
+    const result = await page.evaluate(async () => {
+        const scene = (window as any).scene;
+        const events = scene.events;
+        events.fire('select.all'); await events.invoke('queue', () => {});
+        events.fire('edit.duplicate'); await events.invoke('queue', () => {});
+        const times: number[] = [];
+        let synchronized = true;
+        const handler = events.on('animation.frame', () => {
+            const layers = events.invoke('animation.layers');
+            const time = layers[0].animation.frame.time;
+            times.push(time);
+            synchronized &&= layers.every((s: any) => s.animation.frame.time === time);
+        });
+        for (let i = 0; i < 100; i++) events.fire('timeline.setSeconds', i / 100);
+        await events.invoke('queue', () => {});
+        handler.off();
+        const layers = events.invoke('animation.layers');
+        const original = layers[0].animation.frame;
+        layers[0].animation.clipId = 'missing-clip';
+        let failed = false;
+        try { await events.invoke('animation.prepare', 0.4); } catch { failed = true; }
+        const preserved = layers[0].animation.frame === original;
+        events.fire('scene.clear'); await events.invoke('queue', () => {});
+        return { times, synchronized, failed, preserved, cleared: events.invoke('animation.layers').length === 0 };
+    });
+    expect(result.times.length).toBeGreaterThan(0);
+    expect(result.times.every(time => Math.abs(time - 0.99) < 1e-12)).toBeTruthy();
+    expect(result.synchronized).toBeTruthy();
+    expect(result.failed).toBeTruthy();
+    expect(result.preserved).toBeTruthy();
+    expect(result.cleared).toBeTruthy();
+});
+
+test('video waits for exact frames and restores the viewport pose', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.goto('/?load=/fixtures/conformance/scene.json');
+    await page.waitForFunction(() => (window as any).scene?.elements.some((s: any) => s.animation?.frame));
+    const downloadPromise = page.waitForEvent('download');
+    const result = await page.evaluate(async () => {
+        const scene = (window as any).scene;
+        const events = scene.events;
+        events.fire('timeline.setSeconds', 0.7);
+        await events.invoke('animation.prepare', 0.7);
+        const times: number[] = [];
+        const handler = events.on('animation.frame', (splat: any) => times.push(splat.animation.frame.time));
+        const ok = await events.invoke('render.video', { startFrame: 0, endFrame: 2, frameRate: 30, width: 64, height: 64,
+            bitrate: 1000000, transparentBg: false, showDebug: false, format: 'webm', codec: 'vp9' });
+        handler.off();
+        return { ok, times, restored: events.invoke('animation.layers')[0].animation.frame.time,
+            enabled: !document.querySelector('#animation-controls').classList.contains('pcui-disabled') };
+    });
+    expect(result.ok).toBeTruthy();
+    await (await downloadPromise).saveAs('test-results/animation.webm');
+    expect(result.times).toContain(0);
+    expect(result.times.some(time => Math.abs(time - 1 / 30) < 1e-6)).toBeTruthy();
+    expect(result.restored).toBeCloseTo(0.7);
+    expect(result.enabled).toBeTruthy();
     expect(errors).toEqual([]);
 });

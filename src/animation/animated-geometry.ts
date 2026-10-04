@@ -202,39 +202,48 @@ class AnimatedGeometry {
         this.request++;
     }
 
-    async prepare(time: number): Promise<void> {
+    async stage(time: number): Promise<() => void> {
         const version = ++this.request;
         const scene = this.splat.scene;
-        if (!scene || this.disposed) return;
+        if (!scene || this.disposed) return () => {};
         const frame = await this.provider.prepare(this.bindPose ? '__bind__' : this.clipId, time, version);
-        if (this.disposed || version !== this.request) return;
+        if (this.disposed || version !== this.request) return () => {};
         this.dispatch(frame, this.backPoseTexture);
         const counterRead = this.counter.read(0, 4, this.counterData, false);
         const selection = new BoundingBox();
         const local = new BoundingBox();
         await scene.dataProcessor.calcBound(this.splat, selection, local, this.backPoseTexture);
         await counterRead;
-        if (this.disposed || version !== this.request || this.splat.scene !== scene) return;
-        // Publish texture, CPU frame and bounds together, only after the reduction completes.
-        [this.poseTexture, this.backPoseTexture] = [this.backPoseTexture, this.poseTexture];
-        this.frame = frame;
-        this.fallbackCount = this.counterData[0];
-        this.splat.commitAnimationBounds(selection, local);
-        this.splat.changedCounter++;
-        scene.forceRender = true;
-        scene.boundDirty = true;
-        scene.events.fire('animation.frame', this.splat);
+        return () => {
+            if (this.disposed || version !== this.request || this.splat.scene !== scene) return;
+            // Publish texture, CPU frame and bounds together, only after the reduction completes.
+            [this.poseTexture, this.backPoseTexture] = [this.backPoseTexture, this.poseTexture];
+            this.frame = frame;
+            this.fallbackCount = this.counterData[0];
+            this.splat.commitAnimationBounds(selection, local);
+            this.splat.changedCounter++;
+            scene.forceRender = true;
+            scene.boundDirty = true;
+
+        };
+    }
+
+    async prepare(time: number): Promise<void> {
+        const commit = await this.stage(time);
+        commit();
+        if (this.splat.scene && !this.disposed) this.splat.scene.events.fire('animation.frame', this.splat);
     }
 
     dispatch(frame = this.frame, target = this.poseTexture): void {
-        if (!frame || this.disposed || !this.splat.instances.count) return;
+        if (!frame || this.disposed) return;
+        this.counterData[0] = 0;
+        this.counter.write(0, this.counterData);
+        if (!this.splat.instances.count) return;
         frame.deltas.forEach((dq, i) => {
             this.deltaData.set(dq.real, i * 8);
             this.deltaData.set(dq.dual, i * 8 + 4);
         });
         this.deltas.upload();
-        this.counterData[0] = 0;
-        this.counter.write(0, this.counterData);
         const compute = this.compute;
         compute.setParameter('fallbackCount', this.counter);
         compute.setParameter('previewEnabled', this.previewEnabled ? 1 : 0);
@@ -347,6 +356,11 @@ class AnimatedGeometry {
         this.frame.readDeformation(this.sourceRows[this.splat.instances.sourceRow[instance]], matrix);
         this.readCanonical(instance, canonical);
         result.data.set(multiplyAffine(matrix, canonical));
+    }
+
+    get gpuBytes(): number {
+        return [this.nodes, this.weights, this.deltas, this.poseTexture, this.backPoseTexture, this.canonicalTexture]
+        .reduce((sum, texture) => sum + (texture?.gpuSize ?? 0), this.counter.byteSize);
     }
 
     dispose(): void {

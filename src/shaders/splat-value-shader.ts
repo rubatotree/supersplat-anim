@@ -1,6 +1,7 @@
 import { applyColorGradeWGSL, paletteGradeWGSL } from './color-grade-chunk';
 import { instanceGeometryWGSL } from './instance-geometry-chunk';
 import { indexToUvWGSL, paletteMatrixWGSL } from './palette-chunk';
+import { posedAxesWGSL } from './posed-axes-chunk';
 
 const computeSplatValueWGSL = (bands: number, firstBinding = 1) => {
     let binding = firstBinding;
@@ -126,6 +127,7 @@ ${declarations.join('\n')}
 
 ${paletteMatrixWGSL}
 ${instanceGeometryWGSL}
+${posedAxesWGSL}
 ${indexToUvWGSL('sourceCoord', 'uniforms.sourceWidth')}
 
 ${applyColorGradeWGSL}
@@ -213,7 +215,8 @@ fn computeSplatValue(index: u32, valueOut: ptr<function, f32>, selectedOut: ptr<
     } else if (uniforms.propMode == 8) {
         value = textureLoad(splatColor, s.uv, 0).a * paletteGrade(s.colorIndex).alpha;
     } else if (uniforms.propMode >= 9 && uniforms.propMode <= 13) {
-        let scale = textureLoad(transformB, s.uv, 0).xyz;
+        var scale = textureLoad(transformB, s.uv, 0).xyz;
+        if (hasAnimation()) { scale = posedAxes(index, s.uv).scale; }
         if (uniforms.propMode <= 11) { value = scale[uniforms.propMode - 9]; }
         else if (uniforms.propMode == 12) { value = scale.x * scale.y * scale.z; }
         else { value = dot(scale, scale); }
@@ -222,7 +225,8 @@ fn computeSplatValue(index: u32, valueOut: ptr<function, f32>, selectedOut: ptr<
         let dataB = textureLoad(transformB, s.uv, 0);
         let xy = unpack2x16float(dataA.w);
         let rotation = vec4f(sqrt(max(0.0, 1.0 - xy.x * xy.x - xy.y * xy.y - dataB.w * dataB.w)), xy, dataB.w);
-        value = rotation[uniforms.propMode - 14];
+        if (hasAnimation()) { value = posedAxes(index, s.uv).rotation[uniforms.propMode - 14]; }
+        else { value = rotation[uniforms.propMode - 14]; }
     } else if (uniforms.propMode >= 18 && uniforms.propMode <= 20) {
         let hsv = rgbToHsv(clamp(readFinalColor(s), vec3f(0.0), vec3f(1.0)));
         value = hsv[uniforms.propMode - 18];

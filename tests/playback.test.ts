@@ -5,6 +5,31 @@ import { PlaybackClock } from '../src/animation/playback-clock';
 import { Events } from '../src/events';
 import { registerTimelineEvents } from '../src/timeline';
 
+test('timeline distinguishes explicit seeks from playback ticks', () => {
+    const events = new Events();
+    registerTimelineEvents(events);
+    const ticks: boolean[] = [];
+    events.on('timeline.seconds', (_time: number, tick: boolean) => ticks.push(tick));
+    events.fire('timeline.setSeconds', 0.1);
+    events.fire('timeline.setPlaying', true);
+    events.fire('update', 0.1);
+    events.fire('timeline.setFrame', 2);
+    assert.deepEqual(ticks, [false, true, false]);
+});
+
+test('explicit animation seconds survive sample fps changes and frame sequences retain frame count', () => {
+    const events = new Events();
+    registerTimelineEvents(events);
+    events.fire('timeline.setDuration', 7);
+    events.fire('timeline.setFrameRate', 60);
+    assert.equal(events.invoke('timeline.duration'), 7);
+    assert.equal(events.invoke('timeline.frames'), 420);
+    events.fire('timeline.setFrames', 10);
+    events.fire('timeline.setFrameRate', 20);
+    assert.equal(events.invoke('timeline.frames'), 10);
+    assert.equal(events.invoke('timeline.duration'), 0.5);
+});
+
 test('non-looping clock holds endpoint and stops', () => {
     const clock = new PlaybackClock();
     clock.duration = 0.1;
