@@ -1,0 +1,296 @@
+{
+  "format": "bound-gaussian-scene",
+  "version": "0.1.0",
+  "asset": {
+    "id": "bgs-fixture-5g-001",
+    "name": "BGS five-Gaussian conformance fixture",
+    "quality_status": "experimental_candidate",
+    "extras": {
+      "classification": "synthetic_conformance_fixture_not_real_pick_block_export"
+    }
+  },
+  "coordinate_system": {
+    "handedness": "right",
+    "unit": "meter",
+    "forward_axis": "+X",
+    "left_axis": "+Y",
+    "up_axis": "+Z",
+    "anchor": {
+      "type": "robot_base_support_center",
+      "robot_root_node": 1,
+      "method": "Synthetic fixture only; origin assigned by construction and is not a measured SO101 support plane."
+    }
+  },
+  "gaussians": {
+    "uri": "gaussians.ply",
+    "count": 5,
+    "sh_degree": 2,
+    "sh_basis": "graphdeco_real_sh",
+    "sh_direction": "camera_to_mean",
+    "sh_frame": "scene",
+    "appearance_encoding": "source_numeric_rgb",
+    "opacity_encoding": "logit",
+    "scale_encoding": "ln_std_meters",
+    "rotation_encoding": "wxyz",
+    "binding_slots": 4
+  },
+  "nodes": [
+    {
+      "index": 0,
+      "name": "scene",
+      "parent": -1,
+      "bind_local": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "inverse_bind_matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "index": 1,
+      "name": "base_link",
+      "parent": 0,
+      "bind_local": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "inverse_bind_matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "index": 2,
+      "name": "link_1",
+      "parent": 1,
+      "bind_local": {
+        "translation": [
+          0.2,
+          0,
+          0.1
+        ],
+        "rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "inverse_bind_matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        -0.2,
+        0.0,
+        -0.1,
+        1.0
+      ]
+    },
+    {
+      "index": 3,
+      "name": "link_2",
+      "parent": 2,
+      "bind_local": {
+        "translation": [
+          0.25,
+          0,
+          0
+        ],
+        "rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "inverse_bind_matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        -0.45,
+        0.0,
+        -0.1,
+        1.0
+      ]
+    },
+    {
+      "index": 4,
+      "name": "cube",
+      "parent": 0,
+      "bind_local": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "inverse_bind_matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    }
+  ],
+  "skinning": {
+    "method": "dual_quaternion",
+    "epsilon": 1e-08,
+    "near_zero_fallback": "dominant_influence"
+  },
+  "animation": {
+    "uri": "animation.bin",
+    "endianness": "little",
+    "component_type": "float32",
+    "record_stride_bytes": 28,
+    "record_layout": [
+      "tx",
+      "ty",
+      "tz",
+      "qx",
+      "qy",
+      "qz",
+      "qw"
+    ],
+    "transform_space": "parent_local",
+    "clips": [
+      {
+        "id": "fixture_turn",
+        "frame_count": 3,
+        "node_count": 5,
+        "byte_offset": 0,
+        "byte_length": 420,
+        "times_seconds": [
+          0.0,
+          0.5,
+          1.0
+        ],
+        "duration_seconds": 1.5,
+        "interpolation": "linear_translation_slerp_rotation",
+        "loop_default": false,
+        "source_frame_indices": [
+          0,
+          1,
+          2
+        ],
+        "extras": {
+          "classification": "synthetic_fixture"
+        }
+      }
+    ]
+  },
+  "normalization": {
+    "source_to_scene": [
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1
+    ],
+    "source_units_per_meter": 1.0,
+    "method": "Synthetic fixture values were authored directly in the target metre frame.",
+    "source_calibration_status": "experimental"
+  },
+  "cameras": [],
+  "extensions_required": [],
+  "extras": {
+    "fixture_notes": [
+      "Geometry and motion are synthetic math fixtures, not rendered source 3DGS.",
+      "Illustrative node names do not claim SO101 URDF kinematic calibration."
+    ]
+  }
+}

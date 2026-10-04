@@ -16,7 +16,7 @@ pose edit is conjugated through each Gaussian's rigid deformation.
 ## Milestones
 
 - [x] M1: typed provider contract, seconds clock, loop/endpoints and tests.
-- [ ] M2: validated BGS directory/ZIP/URL loading and CPU reference evaluation.
+- [x] M2: validated BGS directory/ZIP/URL loading and CPU reference evaluation.
 - [ ] M3: GPU deformation shared by render, sorting, picks, selection and bounds.
 - [ ] M4: native PCUI animation controls, bind pose, binding colours/inspection.
 - [ ] M5: canonical affine edits, undo/redo, deletion and shared-layer operations.
@@ -52,6 +52,6 @@ handoff. Refresh the seven-day meter before/after material units; stop if the
 meter becomes unavailable or the ceiling is reached. On early stop write
 docs/HANDOFF.md with commits, changes, tests, reproduction and remaining work.
 
-The local BGS production sample is explicitly incomplete: only the synthetic
-five-Gaussian conformance package is currently loadable. M9 cannot be marked
-complete until the real assets exist and their own checks pass.
+The real 350,000-Gaussian pick-the-block package arrived during implementation.
+It contains two experimental clips and fixed one-hot B bindings. Preserve its
+calibration and pre-release limitations; M9 requires actual app/GPU acceptance.

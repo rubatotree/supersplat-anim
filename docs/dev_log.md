@@ -28,3 +28,17 @@
   focused lint and production build passed. Build has pre-existing vendor/Sass warnings.
 - Quota checkpoint: 50% remaining (50% used), continue.
 - Next: BGS parser, CPU DQ reference and malformed-input tests.
+
+## M2 — BGS validation and CPU provider
+
+- Added strict base-profile JSON/binary/PLY validation, safe relative assets and
+  ZIP loader. Raw PLY and property declarations are retained for lossless export.
+- Added local-pose interpolation, hierarchy, DQ blending, covariance reference
+  and provider cancellation. Bind pose is distinct from the first clip sample.
+- Thirteen tests pass, including an independent supplied JS oracle, SH rotation,
+  malformed data and filesystem loading. Typecheck and focused lint pass.
+- Real package arrived: 350k Gaussians, 10 nodes, two clips, 359 samples total.
+  It is an experimental one-hot B binding; release motion and calibrated quality
+  must not be claimed. App/GPU validation is still pending.
+- Quota checkpoint: 49% remaining, continue.
+- Next: shared GPU matrix path and import into the editor.
