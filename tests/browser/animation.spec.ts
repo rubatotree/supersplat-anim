@@ -469,3 +469,31 @@ test('video waits for exact frames and restores the viewport pose', async ({ pag
     expect(result.enabled).toBeTruthy();
     expect(errors).toEqual([]);
 });
+
+test('folder-prefixed scene.json imports sibling BGS assets', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('console', message => { if (message.type() === 'error') { errors.push(message.text()); console.error(message.text()); } });
+    await page.goto('/');
+    await page.waitForFunction(() => (window as any).scene?.events.functions.has('import'));
+    const result = await page.evaluate(async () => {
+        const names = ['scene.json', 'gaussians.ply', 'animation.bin'];
+        const importPrefixed = async (prefix: string) => {
+            const files = [];
+            for (const name of names) {
+                const blob = await (await fetch(`/fixtures/conformance/${name}`)).blob();
+                files.push({ filename: `${prefix}${name}`, contents: new File([blob], name) });
+            }
+            const layers = await (window as any).scene.events.invoke('import', files);
+            return { count: layers[0].instances.count, clips: layers[0].animation.provider.asset.clips.length };
+        };
+        const slash = await importPrefixed('pack/');
+        (window as any).scene.events.fire('scene.clear');
+        await (window as any).scene.events.invoke('queue', () => {});
+        const backslash = await importPrefixed('pack\\');
+        return { slash, backslash };
+    });
+    expect(result.slash).toEqual({ count: 5, clips: 1 });
+    expect(result.backslash).toEqual({ count: 5, clips: 1 });
+    expect(errors).toEqual([]);
+});

@@ -10,9 +10,11 @@ npm run build
 npm run serve
 ```
 
-BGS 0.1 可通过拖入资产目录、同时选择 `scene.json` 及其引用文件、拖入
-包含资产的 ZIP，或导入 `scene.json` URL 加载。URL 资源相对于清单解析；
-服务器必须允许浏览器读取所有引用文件。目录内的路径不能越出资产范围。
+BGS 0.1 可通过拖入资产目录、选择同一文件夹下的 `scene.json`（解析其引用的
+ply/bin）、同时选择清单及其引用文件、拖入包含资产的 ZIP，或导入 `scene.json`
+URL 加载。只选 `scene.json` 时，若浏览器允许，会再请你选择该文件夹。URL
+资源相对于清单解析；服务器必须允许浏览器读取所有引用文件。目录内的路径
+不能越出资产范围。
 本机真实样例是 `/data/zhuyutian/data/bgs/samples/pick-the-block-20261004/`，
 不包含在 Git 仓库中。
 

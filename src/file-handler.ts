@@ -1,6 +1,7 @@
 import { path, Quat, Vec3 } from 'playcanvas';
 
 import { writeBgs } from './animation/bgs-export';
+import { bgsBasename, bgsFileAliases, bgsSidecarMissing, isBgsSceneFilename, normalizeBgsPath } from './animation/bgs-import';
 import { loadBgs, loadBgsZip } from './animation/bgs-loader';
 import type { Pose } from './camera-poses';
 import { CreateDropHandler, resolveHandleFiles } from './drop-handler';
@@ -39,6 +40,15 @@ const filePickerTypes: { [key: string]: FilePickerAcceptType } = {
         accept: {
             'application/x-gaussian-splat': ['.json', '.sog'],
             'image/webp': ['.webp']
+        }
+    },
+    'bgs': {
+        description: 'Bound Gaussian Scene',
+        accept: {
+            'application/json': ['.json'],
+            'application/zip': ['.zip'],
+            'application/ply': ['.ply'],
+            'application/octet-stream': ['.bin']
         }
     },
     'lcc': {
@@ -150,6 +160,41 @@ type ImportFile = {
     handle?: FileSystemFileHandle;
     // the picked or dropped item this file came from, when it is an enclosing folder
     root?: FileSystemHandle;
+};
+
+const readDirectoryRelative = async (root: FileSystemDirectoryHandle, relative: string): Promise<ImportFile | null> => {
+    const parts = normalizeBgsPath(relative).split('/').filter(part => part.length > 0);
+    if (parts.some(part => part === '.' || part === '..')) return null;
+    let dir = root;
+    try {
+        for (const part of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(part);
+        const handle = await dir.getFileHandle(parts[parts.length - 1]);
+        return { filename: parts.join('/'), contents: await handle.getFile(), handle, root };
+    } catch {
+        return null;
+    }
+};
+
+const addBgsSidecarsFromDirectory = async (root: FileSystemDirectoryHandle, scenePath: string, sceneJson: string, imported: ImportFile[]) => {
+    let value: { gaussians?: { uri?: string }; animation?: { uri?: string } };
+    try {
+        value = JSON.parse(sceneJson);
+    } catch {
+        return;
+    }
+    const normalized = normalizeBgsPath(scenePath);
+    const sceneDir = normalized.slice(0, normalized.lastIndexOf('/') + 1);
+    for (const uri of [value.gaussians?.uri, value.animation?.uri]) {
+        if (typeof uri !== 'string' || uri === '') continue;
+        const candidates = sceneDir ? [uri, sceneDir + uri] : [uri];
+        for (const candidate of candidates) {
+            const file = await readDirectoryRelative(root, candidate);
+            if (file) {
+                imported.push(file);
+                break;
+            }
+        }
+    }
 };
 
 // Remember what the user picked, dropped or launched for Import Recent. Files
@@ -343,29 +388,52 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
 
         const result: Splat[] = [];
         const generation = importGeneration;
-        const sceneIndex = filenames.findIndex(name => name === 'scene.json' || name.endsWith('/scene.json'));
-        if (sceneIndex >= 0 || (files.length === 1 && filenames[0].endsWith('.zip'))) {
+        const sceneIndex = files.findIndex(file => isBgsSceneFilename(file.filename));
+        if (sceneIndex >= 0 || (files.length === 1 && normalizeBgsPath(files[0].filename).toLowerCase().endsWith('.zip'))) {
             try {
                 let data;
+                let recorded = files;
                 if (sceneIndex < 0) {
                     const file = files[0];
                     const blob = file.contents ?? await (await fetch(file.url)).blob();
                     data = await loadBgsZip(new BlobReadSource(blob));
                 } else {
-                    const main = files[sceneIndex];
+                    const imported = files.slice();
+                    const main = imported[sceneIndex];
+                    const scenePath = normalizeBgsPath(main.contents ? main.filename : bgsBasename(main.filename));
+                    const sceneJson = main.contents ? await main.contents.text() : null;
+                    if (sceneJson && bgsSidecarMissing(sceneJson, imported)) {
+                        let folder = imported.find(file => file.root?.kind === 'directory')?.root as FileSystemDirectoryHandle | undefined;
+                        if (!folder && main.handle && window.showDirectoryPicker) {
+                            try {
+                                folder = await window.showDirectoryPicker({
+                                    id: 'SuperSplatBgsFolder',
+                                    mode: 'read',
+                                    startIn: main.handle
+                                });
+                            } catch (error) {
+                                if (error.name !== 'AbortError') console.error(error);
+                            }
+                        }
+                        if (folder) await addBgsSidecarsFromDirectory(folder, scenePath, sceneJson, imported);
+                    }
                     const local = new BlobReadFileSystem();
-                    files.forEach((file) => {
-                        if (file.contents) local.set(file.filename, file.contents, file.handle);
+                    imported.forEach((file) => {
+                        if (!file.contents) return;
+                        for (const alias of bgsFileAliases(scenePath, file.filename)) {
+                            local.set(alias, file.contents, file.handle);
+                        }
                     });
                     const baseUrl = main.url ? new URL('.', new URL(main.url, location.href)).href : null;
                     const urls = baseUrl ? new MappedReadFileSystem(baseUrl) : null;
                     const fileSystem = { createSource: (name: string) => (local.get(name) ? local.createSource(name) :
                         urls ? urls.createSource(name) : Promise.reject(new Error(`Missing BGS resource: ${name}`))) };
-                    data = await loadBgs(fileSystem, main.contents ? main.filename : main.filename.split('/').pop());
+                    data = await loadBgs(fileSystem, scenePath);
+                    recorded = imported;
                 }
                 if (generation !== importGeneration) throw new DOMException('Animation import cancelled', 'AbortError');
                 result.push(await events.invoke('animation.import', data));
-                recordImports(files);
+                recordImports(recorded);
                 return result;
             } catch (error) {
                 if (error.name !== 'AbortError') await showLoadError(error.message ?? String(error), files[sceneIndex < 0 ? 0 : sceneIndex].filename);
@@ -526,6 +594,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
                         filePickerTypes.compressedPly,
                         filePickerTypes.splat,
                         filePickerTypes.sog,
+                        filePickerTypes.bgs,
                         filePickerTypes.lcc,
                         filePickerTypes.ksplat,
                         filePickerTypes.spz,

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { test } from 'node:test';
 
+import { bgsFileAliases, isBgsSceneFilename } from '../src/animation/bgs-import';
 import { parseGaussians, safeAssetPath, validateScene } from '../src/animation/bgs-loader';
 import { BgsProvider } from '../src/animation/bgs-provider';
 import type { BgsData, BgsScene } from '../src/animation/bgs-types';
@@ -154,4 +155,21 @@ test('directory/URL filesystem loader reads only declared relative assets', asyn
     const missing = new MemoryReadFileSystem();
     missing.set('scene.json', new Uint8Array(readFileSync(new URL('scene.json', fixture))));
     await assert.rejects(loadBgs(missing, 'scene.json'));
+});
+
+test('scene.json next to its assets is recognized with folder prefixes and backslashes', async () => {
+    const { MemoryReadFileSystem } = await import('@playcanvas/splat-transform');
+    const { loadBgs } = await import('../src/animation/bgs-loader');
+    assert.equal(isBgsSceneFilename('scene.json'), true);
+    assert.equal(isBgsSceneFilename('pack/scene.json'), true);
+    assert.equal(isBgsSceneFilename('pack\\scene.json'), true);
+    assert.equal(isBgsSceneFilename('cameras.json'), false);
+    const fs = new MemoryReadFileSystem();
+    for (const name of ['scene.json', 'gaussians.ply', 'animation.bin']) {
+        const bytes = new Uint8Array(readFileSync(new URL(name, fixture)));
+        for (const alias of bgsFileAliases('pack/scene.json', `pack\\${name}`)) fs.set(alias, bytes);
+    }
+    const data = await loadBgs(fs, 'pack/scene.json');
+    assert.equal(data.gaussians.count, 5);
+    assert.equal(data.scene.animation.clips.length, 1);
 });
