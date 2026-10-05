@@ -7,6 +7,7 @@ test('real robot and cube bindings survive affine edits and standard BGS subset 
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
     await page.goto('/?load=/fixtures/real/scene.json');
     await page.waitForFunction(() => (window as any).scene?.elements.some((s: any) => s.animation?.frame));
+    await page.locator('#controls-wrap #animation-collapse').click();
     await expect(page.locator('#animation-controls')).toBeVisible();
     const edited = await page.evaluate(async () => {
         const scene = (window as any).scene;

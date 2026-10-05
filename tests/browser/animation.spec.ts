@@ -90,10 +90,11 @@ test('animation controls expose bind pose, colors, source frames and narrow layo
     page.on('console', message => { if (message.type() === 'error') { errors.push(message.text()); console.error(message.text()); } });
     await page.goto('/?load=/fixtures/conformance/scene.json');
     await page.waitForFunction(() => (window as any).scene?.elements.some((s: any) => s.animation?.frame));
+    // collapsed by default; the timeline-row toggle expands the whole panel
+    await expect(page.locator('#animation-controls')).toBeHidden();
+    await page.locator('#controls-wrap #animation-collapse').click();
     await expect(page.locator('#animation-controls')).toBeVisible();
-    await expect(page.locator('#animation-details')).toBeHidden();
-    await page.locator('#animation-details-toggle').press('Enter');
-    await expect(page.locator('#animation-details-toggle')).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('#animation-details')).toBeVisible();
     await page.locator('#animation-bind').click();
     await expect(page.locator('#animation-samples')).toHaveText('Bind pose');
     await page.locator('#animation-colors').click();
@@ -121,7 +122,6 @@ test('animation controls expose bind pose, colors, source frames and narrow layo
     await page.setViewportSize({ width: 640, height: 720 });
     await page.screenshot({ path: 'test-results/animation-controls-narrow.png' });
     expect(await page.locator('#animation-controls').evaluate(el => el.scrollWidth <= el.clientWidth)).toBeTruthy();
-    await page.locator('#animation-details-toggle').click();
     await page.setViewportSize({ width: 390, height: 720 });
     expect(await page.locator('#animation-controls').evaluate(el => el.scrollWidth <= el.clientWidth)).toBeTruthy();
     await page.screenshot({ path: 'test-results/animation-controls-mobile.png' });
@@ -132,12 +132,24 @@ test('animation controls expose bind pose, colors, source frames and narrow layo
         language.ui.value = 'zh-CN';
         (window as any).scene.events.fire('select.none');
     });
-    await expect(page.locator('#animation-details-toggle')).toHaveText('绑定详情');
-    await page.locator('#animation-details-toggle').click();
     await expect(page.locator('#animation-inspector')).toContainText('选择单个高斯');
     expect(await page.locator('#animation-bind svg').count()).toBe(1);
     expect(await page.locator('#animation-colors svg').count()).toBe(1);
     await page.screenshot({ path: 'test-results/animation-controls-desktop-zh.png' });
+    await expect(page.locator('#controls-wrap #animation-collapse')).toBeVisible();
+    // collapse/expand hides the whole controls block and persists the choice
+    await page.locator('#animation-collapse').click();
+    await expect(page.locator('#animation-controls')).toHaveClass(/collapsed/);
+    await expect(page.locator('#animation-collapse')).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.locator('.animation-header')).toBeHidden();
+    await expect(page.locator('#animation-details')).toBeHidden();
+    expect(await page.locator('.animation-row').evaluate(el => getComputedStyle(el).display)).toBe('none');
+    await page.screenshot({ path: 'test-results/animation-controls-collapsed.png' });
+    await page.locator('#animation-collapse').click();
+    await expect(page.locator('#animation-controls')).not.toHaveClass(/collapsed/);
+    await expect(page.locator('.animation-header')).toBeVisible();
+    await expect(page.locator('#animation-details')).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('supersplat:animationPanelCollapsed'))).toBe('0');
     expect(errors).toEqual([]);
 });
 

@@ -2,8 +2,10 @@ import { Button, Container, Element, Label, NumericInput, SelectInput } from '@p
 
 import { Events } from '../events';
 import { ShortcutManager } from '../shortcut-manager';
+import type { Splat } from '../splat';
 import { AnimationControls } from './animation-controls';
 import { i18n } from './localization';
+import chevronIcon from './svg/arrow.svg';
 import { Tooltips } from './tooltips';
 
 class Ticks extends Container {
@@ -470,6 +472,32 @@ class TimelinePanel extends Container {
         this.append(new AnimationControls(events, tooltips));
         this.append(controlsWrap);
         this.append(ticks);
+
+        // panel collapse toggle lives on the timeline row
+        const panelToggle = new Button({
+            id: 'animation-collapse'
+        });
+        const toggleChevron = new DOMParser().parseFromString(decodeURIComponent(chevronIcon.slice('data:image/svg+xml,'.length)), 'image/svg+xml').documentElement;
+        toggleChevron.classList.add('chevron');
+        panelToggle.dom.append(toggleChevron);
+        spacerR.append(panelToggle);
+        panelToggle.hidden = true;
+        const refreshPanelToggle = (): void => {
+            const collapsed = events.invoke('animation.panelCollapsed');
+            panelToggle.class.toggle('collapsed', collapsed);
+            panelToggle.dom.setAttribute('aria-expanded', String(!collapsed));
+            panelToggle.dom.setAttribute('aria-label', i18n.t(collapsed ? 'animation.expand' : 'animation.collapse'));
+        };
+        panelToggle.on('click', () => {
+            events.fire('animation.setPanelCollapsed', !events.invoke('animation.panelCollapsed'));
+        });
+        events.on('animation.panelCollapsed', refreshPanelToggle);
+        events.on('animation.layers', (layers: Splat[]) => {
+            panelToggle.hidden = layers.length === 0;
+            refreshPanelToggle();
+        });
+        refreshPanelToggle();
+        tooltips.register(panelToggle, () => i18n.t(events.invoke('animation.panelCollapsed') ? 'animation.expand' : 'animation.collapse'), 'top');
 
         // ui handlers
 

@@ -37,16 +37,13 @@ class AnimationControls extends Container {
         const axes = new Label({ id: 'animation-axes' });
         const duration = new Label({ id: 'animation-duration' });
         const details = new Container({ id: 'animation-details', hidden: true });
-        const disclosure = new Button({ id: 'animation-details-toggle' });
         i18n.bindText(title, 'animation.title');
-        i18n.bindText(disclosure, 'animation.details');
         i18n.bindText(bind, 'animation.bind-pose');
         i18n.bindText(colors, 'animation.binding-colors');
         i18n.bindText(axes, 'animation.asset-axes');
         header.append(title);
         header.append(status);
         header.append(samples);
-        header.append(disclosure);
         const field = (control: Element, key: string, className: string): Container => {
             const group = new Container({ class: ['animation-field', className] });
             const label = new Label({ class: 'animation-field-label' });
@@ -75,12 +72,29 @@ class AnimationControls extends Container {
         this.append(header);
         this.append(row);
         this.append(details);
-        disclosure.dom.setAttribute('aria-controls', 'animation-details');
-        disclosure.dom.setAttribute('aria-expanded', 'false');
-        disclosure.on('click', () => {
-            details.hidden = !details.hidden;
-            disclosure.class.toggle('active', !details.hidden);
-            disclosure.dom.setAttribute('aria-expanded', String(!details.hidden));
+        // collapsible body; the user's choice persists across sessions
+        const collapseKey = 'supersplat:animationPanelCollapsed';
+        // collapsed by default; an explicit expand choice persists
+        let collapsed = true;
+        try {
+            collapsed = localStorage.getItem(collapseKey) !== '0';
+        } catch { /* localStorage unavailable */ }
+        const refreshBody = (): void => {
+            header.hidden = collapsed;
+            row.hidden = collapsed;
+            details.hidden = collapsed;
+            this.class.toggle('collapsed', collapsed);
+        };
+        refreshBody();
+        events.function('animation.panelCollapsed', () => collapsed);
+        events.on('animation.setPanelCollapsed', (value: boolean) => {
+            if (collapsed === value) return;
+            collapsed = value;
+            try {
+                localStorage.setItem(collapseKey, collapsed ? '1' : '0');
+            } catch { /* localStorage unavailable */ }
+            refreshBody();
+            events.fire('animation.panelCollapsed', collapsed);
         });
         let layers: Splat[] = [];
         let active: Splat | undefined;
