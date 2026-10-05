@@ -227,3 +227,27 @@
 - All code/validation commits pushed to origin/main without force; final docs
   commit follows. No production assets or stress binaries committed.
 - Latest live quota: 85% remaining, above the user's 80% hard floor.
+
+## UI polish and scene.json import — 2026-10-05
+
+- BGS import now accepts a lone `scene.json` next to its assets (folder picker
+  or drag), in addition to zip/directory/multifile/URL. New `src/animation/bgs-import.ts`
+  holds the filename/path helpers; unit and browser coverage added.
+- Animation panel gained a collapse toggle on the timeline row (persisted in
+  localStorage under `supersplat:animationPanelCollapsed`); collapsed state
+  hides the whole animation controls block including its header, leaving the
+  timeline row and its chevron toggle. Disclosure indicators use the
+  existing `arrow.svg` chevron rotated by CSS instead of text glyphs.
+- Readability: legend text no longer inherits the black body color; field
+  labels raised to 11px; binding slot values white; details area scrolls at
+  190px max height. Three `display` overrides were needed because explicit
+  flex rules beat PCUI's `.pcui-hidden`.
+- Verified in real Chrome (WebGPU) at 1280/640/390px: no horizontal overflow,
+  collapsed height 118px, persistence across reload. Playwright headless on
+  this Windows box still fails at engine canvas init (`createBufferImpl`)
+  with and without these changes — environment, not regression.
+- typecheck, lint, locales (412 keys) and 20 unit tests pass.
+- Panel now defaults to collapsed (stored value `'0'` means an explicit expand);
+  the binding-details sub-panel has no independent disclosure anymore and is
+  shown whenever the panel is expanded. `animation.details` locale key removed;
+  performance/real-edit specs expand the panel before asserting visibility.
