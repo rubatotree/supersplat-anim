@@ -1,3 +1,4 @@
+import { attributeWGSL } from './attribute-chunk';
 import { applyColorGradeWGSL, paletteGradeWGSL } from './color-grade-chunk';
 import { instanceGeometryWGSL } from './instance-geometry-chunk';
 import { indexToUvWGSL, paletteMatrixWGSL } from './palette-chunk';
@@ -118,6 +119,12 @@ struct ProjectorUniforms {
     visible: u32,
     selectionEnabled: u32,
     bindingColors: u32,
+    attributeMode: u32,
+    attributeColormap: u32,
+    attributeAutoRange: u32,
+    attributeMin: f32,
+    attributeMax: f32,
+    pseudoSlot: u32,
     pickOp: i32,
     minPixelSize: f32,
     // camera clip planes, used to linearly normalize view depth for the sort key
@@ -179,9 +186,12 @@ ${bands > 0 ? '@group(0) @binding(14) var splatSH_1to3: texture_2d<u32>;' : ''}
 ${bands > 1 ? '@group(0) @binding(15) var splatSH_4to7: texture_2d<u32>;\n@group(0) @binding(16) var splatSH_8to11: texture_2d<u32>;' : ''}
 ${bands > 2 ? '@group(0) @binding(17) var splatSH_12to15: texture_2d<u32>;' : ''}
 @group(0) @binding(${14 + (bands > 0 ? 1 : 0) + (bands > 1 ? 2 : 0) + (bands > 2 ? 1 : 0)}) var posedTransforms: texture_2d<f32>;
-@group(0) @binding(${15 + (bands > 0 ? 1 : 0) + (bands > 1 ? 2 : 0) + (bands > 2 ? 1 : 0)}) var<uniform> uniforms: ProjectorUniforms;
+@group(0) @binding(${15 + (bands > 0 ? 1 : 0) + (bands > 1 ? 2 : 0) + (bands > 2 ? 1 : 0)}) var attributeData: texture_2d<f32>;
+@group(0) @binding(${16 + (bands > 0 ? 1 : 0) + (bands > 1 ? 2 : 0) + (bands > 2 ? 1 : 0)}) var<storage, read> attributeRange: array<u32>;
+@group(0) @binding(${17 + (bands > 0 ? 1 : 0) + (bands > 1 ? 2 : 0) + (bands > 2 ? 1 : 0)}) var<uniform> uniforms: ProjectorUniforms;
 
 ${shCode(bands)}
+${attributeWGSL}
 ${indexToUvWGSL('sourceCoord', 'uniforms.sourceWidth')}
 ${indexToUvWGSL('cacheCoord', 'uniforms.cacheWidth')}
 ${paletteMatrixWGSL}
@@ -438,7 +448,7 @@ fn main(
     if (contributionCulled && uniforms.keepCulled == 0u) {
         return;
     }
-    if (${bands}u > 0u) {
+    if (${bands}u > 0u && uniforms.attributeMode == 0u) {
         let worldDirection = normalize(worldCenter.xyz - uniforms.cameraPosition);
         var localDirection = normalize(transpose(mat3x3f(model[0].xyz, model[1].xyz, model[2].xyz)) * worldDirection);
         if (hasAnimation()) { localDirection = normalize((uniforms.assetInverse * vec4f(worldDirection, 0.0)).xyz); }
@@ -449,7 +459,29 @@ fn main(
         graded = applyColorGrade(graded, uniforms.colorRow0, uniforms.colorRow1, uniforms.colorRow2);
     }
     color = vec4f(graded, gradedAlpha);
-    if (uniforms.bindingColors != 0u && hasAnimation()) { color = vec4f(bindingColor(instance), color.a); }
+    if (uniforms.attributeMode == 0u && uniforms.bindingColors != 0u && hasAnimation()) { color = vec4f(bindingColor(instance), color.a); }
+    if (uniforms.attributeMode == 1u || uniforms.attributeMode == 4u || uniforms.attributeMode == 5u) {
+        let v = attributeValue(uniforms.attributeMode, uv, depth, gradedAlpha);
+        var lo = uniforms.attributeMin; var hi = uniforms.attributeMax;
+        var valid = true;
+        if (uniforms.attributeAutoRange != 0u) {
+            valid = attributeRange[2] > 0u;
+            lo = unorderedFloat(attributeRange[0]); hi = unorderedFloat(attributeRange[1]);
+        }
+        var mapped = vec3f(0.5);
+        if (valid) { mapped = attributeMap(v, lo, hi, uniforms.attributeColormap); }
+        color = vec4f(mapped, gradedAlpha);
+    } else if (uniforms.attributeMode == 2u) {
+        let toCamera = select(uniforms.cameraPosition-worldCenter.xyz,
+            vec3f(uniforms.view[0].z,uniforms.view[1].z,uniforms.view[2].z), uniforms.isOrtho != 0u);
+        let n = attributeNormal(uv, model, rotationMatrix(rotation), b.xyz, toCamera);
+        color = vec4f(n*0.5+0.5, gradedAlpha);
+    } else if (uniforms.attributeMode == 3u) {
+        color = vec4f(select(vec3f(0.5), bindingColor(instance), hasAnimation()), gradedAlpha);
+    } else if (uniforms.attributeMode == 6u) {
+        let rgb = textureLoad(attributeData, uv, 0).xyz;
+        color = vec4f(select(vec3f(0.5), clamp(rgb,vec3f(0),vec3f(1)), all(abs(rgb) <= vec3f(3.402823e38))), gradedAlpha);
+    } else if (uniforms.attributeMode == 7u) { color = vec4f(vec3f(0.5), gradedAlpha); }
 
     let selected = (state & 1u) != 0u && uniforms.selectionEnabled != 0u;
     let locked = (state & 2u) != 0u;
@@ -490,10 +522,13 @@ fn main(
         pack2x16float(axis1)
     ));
     textureStore(cacheB, cacheUv, vec4u(
+        // len2 非负，借用 half 的符号位标记诊断颜色；所有几何读取需清除此位。
         pack2x16float(vec2f(len2, 0.0))
             | (u32(clamp(color.a, 0.0, 1.0) * 255.0 + 0.5) << 16u)
             | select(0u, 0x01000000u, selected)
             | select(0u, 0x02000000u, locked)
+            | (uniforms.pseudoSlot << 26u)
+            | select(0u, 0x8000u, uniforms.attributeMode != 0u)
     ));
     if (sizeCulled || contributionCulled || occluded) {
         let tail = atomicAdd(&splatCounter[1], 1u);

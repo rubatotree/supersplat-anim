@@ -11,6 +11,7 @@ import {
 
 import { AnimatedGeometry, staticPoseTexture } from './animation/animated-geometry';
 import { BgsProvider } from './animation/bgs-provider';
+import { defaultAttributeSettings, normalizeAttributeSettings, type AttributeRenderSettings } from './attribute-render';
 import { ColorGrade, createGradeTerms, gradeTerms } from './color-grade';
 import { ColorPalette } from './color-palette';
 import { EditorSplatResource } from './editor-splat-resource';
@@ -40,6 +41,7 @@ const boundingPoints =
     }).flat(3);
 
 class Splat extends Element {
+    attributeSettings: AttributeRenderSettings = defaultAttributeSettings();
     animation: AnimatedGeometry | null = null;
 
     get posedTransforms(): Texture {
@@ -308,6 +310,7 @@ class Splat extends Element {
         // and this layer has not been added to one yet
         layer._name = name;
         layer._visible = this._visible;
+        layer.attributeSettings = normalizeAttributeSettings(this.attributeSettings);
 
         // the copied instances still index *this* layer's palettes, so give the new
         // layer its own entries for the transforms and grades it actually
@@ -354,6 +357,7 @@ class Splat extends Element {
     serialize(serializer: Serializer) {
         serializer.packa(this.entity.getWorldTransform().data);
         serializer.pack(this.changedCounter);
+        serializer.pack(JSON.stringify(this.attributeSettings));
         serializer.pack(this.visible);
     }
 
@@ -473,6 +477,7 @@ class Splat extends Element {
         const pack4 = (q: Quat) => [q.x, q.y, q.z, q.w];
         return {
             name: this.name,
+            attributeSettings: this.attributeSettings,
             position: pack3(this.entity.getLocalPosition()),
             rotation: pack4(this.entity.getLocalRotation()),
             scale: pack3(this.entity.getLocalScale()),
@@ -486,6 +491,7 @@ class Splat extends Element {
         const { name, position, rotation, scale, visible } = doc;
 
         this.name = name;
+        this.attributeSettings = normalizeAttributeSettings(doc.attributeSettings);
         this.move(new Vec3(position), new Quat(rotation), new Vec3(scale));
         // older documents predate the local frame
         this.localFrameOrigin = doc.localFrameOrigin ? new Vec3(doc.localFrameOrigin) : new Vec3();

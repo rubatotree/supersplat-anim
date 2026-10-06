@@ -1,5 +1,36 @@
 # Animation development log
 
+## 2026-10-06 — Gaussian 属性着色与伪法线
+
+- 着色面板新增每图层独立的原始颜色、深度、法线、伪法线、绑定对象、
+  透明度、自定义标量及 RGB 通道。标量支持 Viridis/Turbo/Inferno/灰度、
+  GPU 自动范围及手动上下限；自动识别常见三分量字段，也可自行配通道。
+- 法线优先读取 nx/ny/nz，以逆转置转换至世界空间；无效或缺失时使用
+  当前协方差的最短主轴。刚体/正交轴提供快速路径，剪切使用 Jacobi 分解。
+- 伪法线逐图层合成期望深度（Gaussian footprint、透明度与遮挡均参与），
+  再重建视空间位置并微分，转换到世界空间法线颜色。重建颜色回到统一
+  排序通道合成，所以多个属性图层仍正确遮挡。诊断颜色跳过 SH、RGB 调色
+  和 tone mapping；保留原有透明度、选择覆盖层与独立拾取。
+- 属性模式暂停随机透明度/warp，使用排序后的 alpha blending。设置支持
+  撤销/重做、图层复制/分离及 ssproj 保存恢复；旧工程默认原始颜色。
+  图片和视频捕获等待自定义列上传后再渲染，数据导出保留源属性。
+- 属性列按需读取，以重排后的源行和 instanceSource 对齐。过期异步请求
+  不覆盖新设置；GPU 辅助数据随模式/资源切换或清空释放，并纳入渲染统计。
+- 验证：24 个单元测试；实际 Chrome WebGPU 属性数值、透视/正交伪法线、
+  面板操作、撤销/重做、工程恢复、PNG/三帧 WebM 导出与窄面板通过。
+  既有动画、旧工程、导出、生命周期和选择工具回归通过；生产样例测试
+  未运行（BGS_SKIP_REAL=1）。typecheck、lint、428 个 locale key 检查通过。
+- 最终 release 构建成功，发布产物上的属性与选择工具回归 5/5 通过。
+- 35 万 Gaussian 合成样例，1280×610：原始颜色/深度/法线平均帧间隔
+  约 5.5 ms，伪法线约 8.0 ms；这是本机短时测量，不是通用性能承诺。
+  伪法线辅助目标约 18.74 MB，切回原始颜色后恢复至 8-byte 占位纹理。
+- 限制：同时可见的伪法线图层最多 63 个；支持 float32-blendable 的
+  设备使用 RGBA32F 深度，不支持时使用归一化 RGBA16F，微分精度较低。
+  390px 下新增面板无溢出；原有底部工具栏仍宽于窗口，本次未改其布局。
+- Windows 浏览器验证使用 BGS_WEBGPU_NATIVE=1 与 --headed，选择安装的
+  Chrome 原生 GPU 后端。原有强制 Vulkan 的 Chromium 配置在本机回退到
+  WebGL 并报 createBufferImpl 错误；新增开关避免更改其它平台默认配置。
+
 ## 2026-10-04 — implementation start
 
 - Base revision: 4d172ca (SuperSplat 3.5.1), branch main, clean working tree.

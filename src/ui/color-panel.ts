@@ -2,8 +2,9 @@ import { Button, ColorPicker, Container, Label, SliderInput } from '@playcanvas/
 import { Color } from 'playcanvas';
 
 import { Events } from '../events';
-import { i18n } from './localization';
 import { Splat } from '../splat';
+import { AttributePanel } from './attribute-panel';
+import { i18n } from './localization';
 import arrowSvg from './svg/arrow.svg';
 import checkSvg from './svg/check.svg';
 import colorsSvg from './svg/colors.svg';
@@ -239,6 +240,7 @@ class ColorPanel extends Container {
             hidden: true
         });
 
+        content.append(new AttributePanel(events));
         content.append(tintRow);
         content.append(temperatureRow);
         content.append(saturationRow);
@@ -318,7 +320,10 @@ class ColorPanel extends Container {
 
         // the renderer asks for this every frame; null means nothing to preview
         events.function('colorPanel.pending', () => {
-            return (selected && !isNeutral()) ? pendingParams() : null;
+            if (!selected) return null;
+            if (selected.attributeSettings.mode === 'color') return !isNeutral() ? pendingParams() : null;
+            if (transparencySlider.value === 0) return null;
+            return { ...pendingParams(), tintClr: new Color(1, 1, 1), temperature: 0, saturation: 1, brightness: 0, blackPoint: 0, whitePoint: 1 };
         });
 
         const setControls = (values: typeof NEUTRAL) => {
@@ -374,12 +379,23 @@ class ColorPanel extends Container {
             }
         });
 
+        const updateGradeEnabled = () => {
+            const enabled = !!selected && selected.attributeSettings.mode === 'color';
+            [tintPicker, temperatureSlider, saturationSlider, brightnessSlider, blackPointSlider, whitePointSlider, apply, reset].forEach((c) => {
+                c.enabled = enabled;
+            });
+        };
+
         events.on('selection.changed', (splat) => {
             selected = splat;
             // the pending grade belongs to the panel, not to a layer, but carrying it
             // across a selection change would silently retarget it
             setControls(NEUTRAL);
+            updateGradeEnabled();
         });
+
+        events.on('splat.attributeChanged', updateGradeEnabled);
+        updateGradeEnabled();
 
     }
 }

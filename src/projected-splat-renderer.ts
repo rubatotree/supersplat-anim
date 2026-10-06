@@ -45,8 +45,12 @@ import {
     Vec2
 } from 'playcanvas';
 
+import { AttributeData } from './attribute-data';
+import { AttributeRange } from './attribute-range';
+import { ATTRIBUTE_MODES, COLORMAPS, scalarAttributeMode } from './attribute-render';
 import { createGradeTerms, gradeRows, gradeTerms, type GradeParams } from './color-grade';
 import { maskByteSize } from './data-processor/histogram-config';
+import { PseudoNormals } from './pseudo-normal';
 import type { Scene } from './scene';
 import { footprintIntersect } from './shaders/footprint-intersect-shader';
 import { projectedSplatDepthReduce } from './shaders/projected-splat-depth-reduce-shader';
@@ -107,6 +111,10 @@ type Placement = {
     // last placement recorded
     compute: Compute | null;
     bands: number;
+    attributes: AttributeData;
+    range: AttributeRange;
+    attributeKey: string;
+    pseudoSlot: number;
 };
 
 type ProjectedRendererStats = {
@@ -114,6 +122,8 @@ type ProjectedRendererStats = {
     projectedSplats: number;
     sourceBytes: number;
     editingBytes: number;
+    attributeBytes: number;
+    pseudoNormalBytes: number;
     cacheBytes: number;
     keyBytes: number;
     estimatedRadixBytes: number;
@@ -161,7 +171,7 @@ class ProjectedSplatRenderer {
     private readonly viewProjection = new Mat4();
     private readonly dispatchSize = new Vec2();
     private readonly sorter: ComputeRadixSort;
-    private readonly material: ShaderMaterial;
+    readonly material: ShaderMaterial;
     private readonly mesh: Mesh;
     private readonly meshInstance: MeshInstance;
     private readonly entity: Entity;
@@ -200,6 +210,7 @@ class ProjectedSplatRenderer {
     private layoutDirty = true;
     private submissionCpuMs = 0;
     private stochastic = false;
+    private pseudoNormals: PseudoNormals;
     private overdraw = false;
     // contribution cull on stochastic frames, adapted from each stochastic
     // frame's gpu span toward motionBudgetMs: raised while frames run over the
@@ -277,6 +288,9 @@ class ProjectedSplatRenderer {
         this.material.setParameter('pickFootprint', 1);
         this.material.setParameter('warpStrength', 0);
         this.material.setParameter('cameraParams', [0, 1, 0, 0]);
+        this.pseudoNormals = new PseudoNormals(scene);
+        this.material.setParameter('pseudoNormals', this.pseudoNormals.texture);
+        this.material.setParameter('pseudoDepthScale', 1);
         this.material.update();
 
         this.mesh = createQuadMesh(this.device);
@@ -342,7 +356,11 @@ class ProjectedSplatRenderer {
             entryCapacity: 0,
             instanceBase: 0,
             compute: null,
-            bands: -1
+            bands: -1,
+            attributes: new AttributeData(splat.resource),
+            range: new AttributeRange(this.device),
+            attributeKey: '',
+            pseudoSlot: 0
         });
         this.layoutDirty = true;
     }
@@ -351,6 +369,8 @@ class ProjectedSplatRenderer {
         const index = this.placements.findIndex(placement => placement.splat === splat);
         if (index !== -1) {
             this.placements[index].compute?.destroy();
+            this.placements[index].attributes.destroy();
+            this.placements[index].range.destroy();
             this.placements.splice(index, 1);
             this.layoutDirty = true;
         }
@@ -374,6 +394,19 @@ class ProjectedSplatRenderer {
     // args, so the pick draw no longer leans on the previous frame's.
     renderSortedForPick() {
         this.render(true);
+    }
+
+    // 截图/视频必须等待当前属性列，避免第一次捕获使用尚未更新的旧颜色。
+    async prepareAttributes() {
+        await Promise.all(this.placements.filter(p => p.splat.visible).map(async (placement) => {
+            const { splat } = placement;
+            if (placement.attributes.resource !== splat.resource) {
+                placement.attributes.destroy();
+                placement.attributes = new AttributeData(splat.resource);
+                placement.attributeKey = '';
+            }
+            await placement.attributes.prepare(splat.attributeSettings);
+        }));
     }
 
     preparePick(splat: Splat, pickOp: number, depth: boolean) {
@@ -476,6 +509,12 @@ class ProjectedSplatRenderer {
             new UniformFormat('visible', UNIFORMTYPE_UINT),
             new UniformFormat('selectionEnabled', UNIFORMTYPE_UINT),
             new UniformFormat('bindingColors', UNIFORMTYPE_UINT),
+            new UniformFormat('attributeMode', UNIFORMTYPE_UINT),
+            new UniformFormat('attributeColormap', UNIFORMTYPE_UINT),
+            new UniformFormat('attributeAutoRange', UNIFORMTYPE_UINT),
+            new UniformFormat('attributeMin', UNIFORMTYPE_FLOAT),
+            new UniformFormat('attributeMax', UNIFORMTYPE_FLOAT),
+            new UniformFormat('pseudoSlot', UNIFORMTYPE_UINT),
             new UniformFormat('pickOp', UNIFORMTYPE_INT),
             new UniformFormat('minPixelSize', UNIFORMTYPE_FLOAT),
             new UniformFormat('near', UNIFORMTYPE_FLOAT),
@@ -506,6 +545,8 @@ class ProjectedSplatRenderer {
             new BindStorageBufferFormat('instancePalette', SHADERSTAGE_COMPUTE, true),
             new BindStorageBufferFormat('prevDepthMax', SHADERSTAGE_COMPUTE, true),
             ...textureFormats,
+            new BindTextureFormat('attributeData', SHADERSTAGE_COMPUTE, undefined, SAMPLETYPE_UNFILTERABLE_FLOAT, false),
+            new BindStorageBufferFormat('attributeRange', SHADERSTAGE_COMPUTE, true),
             new BindUniformBufferFormat('uniforms', SHADERSTAGE_COMPUTE)
         ]);
         const shader = new Shader(this.device, {
@@ -824,9 +865,18 @@ class ProjectedSplatRenderer {
         if (this.capacity === 0 || !this.sortKeys || !this.compactEntries || !this.cacheA || !this.cacheB) {
             this.centersEntity.enabled = false;
             this.frameStochastic = false;
+            this.pseudoNormals.resize(1, 1, 0);
+            this.material.setParameter('pseudoNormals', this.pseudoNormals.texture);
             return;
         }
 
+        let pseudoCount = 0;
+        for (const placement of this.placements) {
+            placement.pseudoSlot = !forPick && placement.splat.visible && placement.splat.attributeSettings.mode === 'pseudo-normal' ? ++pseudoCount : 0;
+        }
+        if (pseudoCount > 63) throw new Error('At most 63 pseudo-normal layers can be rendered together');
+        if (!forPick) this.pseudoNormals.resize(this.scene.targetSize.width, this.scene.targetSize.height, pseudoCount);
+        this.material.setParameter('pseudoNormals', this.pseudoNormals.texture);
         const start = performance.now();
         const { camera, targetSize, events } = this.scene;
         const cameraComponent = camera.camera;
@@ -909,6 +959,27 @@ class ProjectedSplatRenderer {
 
         for (const placement of this.placements) {
             const { splat } = placement;
+            if (placement.attributes.resource !== splat.resource) {
+                placement.attributes.destroy();
+                placement.attributes = new AttributeData(splat.resource);
+                placement.attributeKey = '';
+            }
+            const attributeKey = JSON.stringify(splat.attributeSettings);
+            if (placement.attributeKey !== attributeKey) {
+                placement.attributeKey = attributeKey;
+                this.scene.events.fire('splat.attributeLoading', splat);
+                placement.attributes.prepare(splat.attributeSettings).then(() => {
+                    if (!this.placements.includes(placement) || placement.attributeKey !== attributeKey) return;
+                    this.scene.forceRender = true;
+                    this.scene.events.fire('splat.attributeChanged', splat);
+                }).catch((error: Error) => {
+                    if (!this.placements.includes(placement) || placement.attributeKey !== attributeKey) return;
+                    splat.attributeSettings = { ...placement.attributes.settings, channels: [...placement.attributes.settings.channels] };
+                    this.scene.events.fire('splat.attributeChanged', splat);
+                    this.scene.events.invoke('showPopup', { type: 'error', header: 'Gaussian attributes', message: error.message });
+                });
+            }
+            const attribute = placement.attributes.settings;
             const { instances } = splat;
             const resource = splat.resource;
             const bands = Math.min(viewBands, resource.shBands);
@@ -924,6 +995,17 @@ class ProjectedSplatRenderer {
                 ringsCount = placement.count;
             }
 
+            if (attribute.autoRange && scalarAttributeMode(attribute.mode)) {
+                placement.range.update(splat, placement.attributes.texture, view, previewMode, previewMode ? this.previewTerms.transparency : 1, attribute.mode);
+            }
+            compute.setParameter('attributeData', placement.attributes.texture);
+            compute.setParameter('attributeRange', placement.range.buffer);
+            compute.setParameter('attributeMode', forPick || this.scene.overdrawRender ? 0 : ATTRIBUTE_MODES.indexOf(attribute.mode));
+            compute.setParameter('attributeColormap', COLORMAPS.indexOf(attribute.colormap));
+            compute.setParameter('attributeAutoRange', attribute.autoRange ? 1 : 0);
+            compute.setParameter('attributeMin', attribute.min);
+            compute.setParameter('attributeMax', attribute.max);
+            compute.setParameter('pseudoSlot', forPick ? 0 : placement.pseudoSlot);
             compute.setParameter('sortKeys', this.sortKeys);
             compute.setParameter('compactEntries', this.compactEntries);
             compute.setParameter('splatCounter', this.splatCounter);
@@ -1142,6 +1224,11 @@ class ProjectedSplatRenderer {
             centers.setParameter('selectedClr', [selectedColor.r, selectedColor.g, selectedColor.b, selectedColor.a]);
             centers.setParameter('unselectedClr', [unselectedColor.r, unselectedColor.g, unselectedColor.b, unselectedColor.a]);
         }
+        if (!forPick) {
+            for (const placement of this.placements) {
+                if (placement.pseudoSlot) this.pseudoNormals.render(placement.splat, placement.pseudoSlot);
+            }
+        }
         this.submissionCpuMs = performance.now() - start;
     }
 
@@ -1159,12 +1246,16 @@ class ProjectedSplatRenderer {
         // of the per-gaussian editable data now
         const editingBytes = Array.from(splats).reduce((sum, splat) => sum + splat.instances.byteSize +
             splat.transformPalette.texture.gpuSize + splat.colorPalette.texture.gpuSize + (splat.animation?.gpuBytes ?? 0), 0);
-        const totalTransientBytes = cacheBytes + keyBytes + estimatedRadixBytes;
+        const attributeBytes = this.placements.reduce((sum, p) => sum + p.attributes.texture.gpuSize + 12, 0);
+        const pseudoNormalBytes = this.pseudoNormals.gpuBytes;
+        const totalTransientBytes = cacheBytes + keyBytes + estimatedRadixBytes + attributeBytes + pseudoNormalBytes;
         return {
             placements: this.placements.length,
             projectedSplats: this.capacity,
             sourceBytes,
             editingBytes,
+            attributeBytes,
+            pseudoNormalBytes,
             cacheBytes,
             keyBytes,
             estimatedRadixBytes,
@@ -1180,6 +1271,8 @@ class ProjectedSplatRenderer {
     destroy() {
         for (const placement of this.placements) {
             placement.compute?.destroy();
+            placement.attributes.destroy();
+            placement.range.destroy();
         }
         for (const variant of this.variants.values()) {
             variant.shader.destroy();
@@ -1203,6 +1296,7 @@ class ProjectedSplatRenderer {
         this.cacheA?.destroy();
         this.cacheB?.destroy();
         this.sorter.destroy();
+        this.pseudoNormals.destroy();
         this.entity.destroy();
         this.meshInstance.destroy();
         this.material.destroy();

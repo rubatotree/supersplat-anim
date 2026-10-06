@@ -56,7 +56,7 @@ fn main(
     let center = (vec2f(ndc.x, -ndc.y) * 0.5 + 0.5) * uniforms.viewport;
 
     var axis1 = unpack2x16float(a.w);
-    let len2 = unpack2x16float(textureLoad(cacheB, uv, 0).x).x;
+    let len2 = unpack2x16float(textureLoad(cacheB, uv, 0).x & 0x7fffu).x;
     var axis2 = len2 * normalize(vec2f(axis1.y, -axis1.x));
 
     // footprint scale, each axis clamped to ~a pixel so small footprints stay

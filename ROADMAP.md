@@ -15,6 +15,13 @@ pose edit is conjugated through each Gaussian's rigid deformation.
 
 ## Milestones
 
+### Gaussian attribute views
+
+- [x] Per-layer scalar/RGB settings, lazy property uploads and ssproj compatibility.
+- [x] GPU attribute colours/ranges and world-space normals.
+- [x] Per-layer expected-depth pass and screen-space pseudo normals.
+- [x] Colour-panel controls, export integration and WebGPU regression validation.
+
 - [x] M1: typed provider contract, seconds clock, loop/endpoints and tests.
 - [x] M2: validated BGS directory/ZIP/URL loading and CPU reference evaluation.
 - [x] M3: GPU deformation shared by render, sorting, picks, selection and bounds.

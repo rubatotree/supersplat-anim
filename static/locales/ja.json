@@ -409,5 +409,22 @@
     "animation.paused": "Paused",
     "animation.timeline": "Timeline",
     "animation.collapse": "Collapse panel",
-    "animation.expand": "Expand panel"
+    "animation.expand": "Expand panel",
+    "panel.attributes.render": "Render attribute",
+    "panel.attributes.color": "Original colour",
+    "panel.attributes.depth": "Depth",
+    "panel.attributes.normal": "Normal",
+    "panel.attributes.pseudo-normal": "Pseudo normal (depth derivative)",
+    "panel.attributes.binding": "Bound object",
+    "panel.attributes.opacity": "Opacity",
+    "panel.attributes.rgb": "Custom RGB channels",
+    "panel.attributes.colormap": "Colormap",
+    "panel.attributes.gray": "Grayscale",
+    "panel.attributes.auto-range": "Automatic range",
+    "panel.attributes.min": "Minimum",
+    "panel.attributes.max": "Maximum",
+    "panel.attributes.red": "Red channel",
+    "panel.attributes.green": "Green channel",
+    "panel.attributes.blue": "Blue channel",
+    "panel.attributes.loading": "Loading attributes…"
 }

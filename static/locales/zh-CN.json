@@ -409,5 +409,22 @@
     "animation.paused": "已暂停",
     "animation.timeline": "时间轴",
     "animation.collapse": "收起面板",
-    "animation.expand": "展开面板"
+    "animation.expand": "展开面板",
+    "panel.attributes.render": "渲染属性",
+    "panel.attributes.color": "原始颜色",
+    "panel.attributes.depth": "深度",
+    "panel.attributes.normal": "法线",
+    "panel.attributes.pseudo-normal": "伪法线（深度微分）",
+    "panel.attributes.binding": "绑定对象",
+    "panel.attributes.opacity": "透明度",
+    "panel.attributes.rgb": "自定义 RGB 通道",
+    "panel.attributes.colormap": "色标",
+    "panel.attributes.gray": "灰度",
+    "panel.attributes.auto-range": "自动范围",
+    "panel.attributes.min": "最小值",
+    "panel.attributes.max": "最大值",
+    "panel.attributes.red": "红色通道",
+    "panel.attributes.green": "绿色通道",
+    "panel.attributes.blue": "蓝色通道",
+    "panel.attributes.loading": "正在读取属性…"
 }

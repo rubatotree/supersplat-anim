@@ -576,7 +576,8 @@ class Scene {
         const adaptive = stochastic === 'movement' ||
             (auto && (this.autoEngaged || !this.frameTimings.gpuSupported));
         this.overdrawRender = this.camera.renderOverlays && !!this.events.invoke('view.overdraw');
-        this.movingRender = !this.lockedRenderMode && !this.overdrawRender &&
+        this.movingRender = !this.elements.some(e => e instanceof Splat && e.visible && e.attributeSettings.mode !== 'color') &&
+            !this.lockedRenderMode && !this.overdrawRender &&
             (stochastic === 'enabled' || (adaptive && interacting));
 
         // timestamp queries cost a per-frame staging-buffer map and a resolve,

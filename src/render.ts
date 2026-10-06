@@ -159,6 +159,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
         try {
             events.fire('animation.freeze');
             await events.invoke('animation.prepare', events.invoke('timeline.seconds'));
+            await scene.projectedSplatRenderer.prepareAttributes();
             const { width, height, transparentBg, showDebug, format, quality, projection, levelHorizon } = imageSettings;
             const is360 = projection === 'equirect';
 
@@ -478,6 +479,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
                     // Fire timeline.time for camera animation interpolation
                     events.fire('timeline.time', frameTime);
                     await events.invoke('animation.prepare', frameTime / events.invoke('timeline.frameRate'));
+                    await scene.projectedSplatRenderer.prepareAttributes();
 
                     // Wait for PLY sequence to load the frame if present
                     const newSplat = await events.invoke('plysequence.setFrameAsync', Math.floor(frameTime)) as Splat | null;

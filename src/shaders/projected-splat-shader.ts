@@ -49,6 +49,7 @@ varying @interpolate(flat, either) packedColor2: u32;
 varying @interpolate(flat, either) gaussianFlags: u32;
 varying @interpolate(flat, either) gaussianId: u32;
 varying @interpolate(flat, either) gaussianDepth: f32;
+varying @interpolate(flat, either) pseudoSlot: u32;
 
 ${overlayEligibleWGSL}
 ${stochasticWarpWGSL}
@@ -143,7 +144,7 @@ fn vertexMain(input: VertexInput) -> VertexOutput {
     let selectedRingRgb = mix(ringRgb, uniform.selectedRingColor.rgb, uniform.selectedRingColor.a);
 
     var axis1 = unpack2x16float(a.w);
-    var axis2 = unpack2x16float(b).x * normalize(vec2f(axis1.y, -axis1.x));
+    var axis2 = unpack2x16float(b & 0x7fffu).x * normalize(vec2f(axis1.y, -axis1.x));
     #ifdef PICK_PASS
         // id picks select by the footprint slider: scale each axis, clamped so
         // the quad still covers ~a pixel at 0 (centers semantics). Depth picks
@@ -166,11 +167,12 @@ fn vertexMain(input: VertexInput) -> VertexOutput {
         #endif
     #endif
     output.gaussianUV = corner;
-    let fill = prepareOutputFromGamma(gaussianRgb, clip.w);
+    let fill = select(prepareOutputFromGamma(gaussianRgb, clip.w), gaussianRgb, (b & 0x8000u) != 0u);
     let ring = prepareOutputFromGamma(select(ringRgb, selectedRingRgb, (flags & 1u) != 0u), clip.w);
     output.packedColor0 = pack2x16float(fill.rg);
     output.packedColor1 = pack2x16float(vec2f(fill.b, ring.r));
     output.packedColor2 = pack2x16float(ring.gb);
+    output.pseudoSlot = b >> 26u;
     output.gaussianFlags = flags | (alphaByte << 8u);
     output.gaussianId = entry - uniform.pickBase;
     // linear view depth for the depth pick (fragment normalizes it by near/far).
@@ -190,6 +192,7 @@ varying @interpolate(flat, either) packedColor2: u32;
 varying @interpolate(flat, either) gaussianFlags: u32;
 varying @interpolate(flat, either) gaussianId: u32;
 varying @interpolate(flat, either) gaussianDepth: f32;
+varying @interpolate(flat, either) pseudoSlot: u32;
 
 uniform outlineMode: u32;
 // whether the Underlay pass will add the selection's work-buffer share back
@@ -203,6 +206,8 @@ uniform ringsBase: u32;
 uniform ringsCount: u32;
 uniform pickMode: i32;
 uniform cameraParams: vec4f;
+uniform pseudoDepthScale: f32;
+var pseudoNormals: texture_2d_array<f32>;
 
 ${overlayEligibleWGSL}
 
@@ -236,7 +241,10 @@ fn fragmentMain(input: FragmentInput) -> FragmentOutput {
     let opacity = f32((gaussianFlags >> 8u) & 0xffu) / 255.0;
 
     #ifdef PICK_PASS
-        if (uniform.pickMode == 1) {
+        if (uniform.pickMode == 2) {
+            let alpha = normExp(radius) * opacity;
+            output.color = vec4f(gaussianDepth / uniform.pseudoDepthScale * alpha,0.0,0.0,alpha);
+        } else if (uniform.pickMode == 1) {
             let depth = (gaussianDepth - uniform.cameraParams.z) / (uniform.cameraParams.y - uniform.cameraParams.z);
             let contribution = normExp(radius) * opacity;
             if (contribution < 1.0 / 255.0) {
@@ -262,6 +270,10 @@ fn fragmentMain(input: FragmentInput) -> FragmentOutput {
         var alpha = select(0.0, norm * opacity, showGaussian);
         let packedMid = unpack2x16float(packedColor1);
         var color = vec3f(unpack2x16float(packedColor0), packedMid.x);
+        if (pseudoSlot > 0u) {
+            let value = textureLoad(pseudoNormals,vec2i(pcPosition.xy),i32(pseudoSlot-1u),0);
+            color = value.rgb;
+        }
         // Rings apply only to the selected splat's gaussians (gaussianId is the
         // cache entry index in the forward pass, where pickBase is 0). Their
         // alpha is composed with the independently-controlled gaussian fill.

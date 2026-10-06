@@ -9,7 +9,8 @@ export default defineConfig({
     use: {
         baseURL: 'http://127.0.0.1:4173',
         viewport: { width: 1280, height: 720 },
-        launchOptions: { args: process.env.BGS_WEBGPU_SOFTWARE === '1' ?
+        channel: process.env.BGS_WEBGPU_NATIVE === '1' ? 'chrome' : undefined,
+        launchOptions: { args: process.env.BGS_WEBGPU_NATIVE === '1' ? ['--enable-unsafe-webgpu'] : process.env.BGS_WEBGPU_SOFTWARE === '1' ?
             ['--enable-unsafe-webgpu', '--use-webgpu-adapter=swiftshader', '--use-gl=angle', '--use-angle=swiftshader',
                 '--enable-unsafe-swiftshader', '--use-vulkan=swiftshader',
                 '--enable-features=Vulkan', '--disable-vulkan-surface', '--ignore-gpu-blocklist',

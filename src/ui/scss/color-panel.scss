@@ -80,6 +80,12 @@
         background-color: $bcg-dark;
     }
 
+    .attribute-control { width: 215px; flex-shrink: 0; margin: 0; }
+    .attribute-control.pcui-boolean-input { width: 22px; margin-right: 193px; }
+    .attribute-panel .pcui-hidden { display: none; }
+    .attribute-legend { height: 10px; margin: 5px 10px 8px; border-radius: 2px; }
+    .attribute-status { padding: 4px 10px; }
+
     // apply/reset follow the settings panel's footer button styling
     .color-panel-control-row {
         display: flex;
