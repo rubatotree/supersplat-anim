@@ -1,7 +1,6 @@
 import { Container, Label } from '@playcanvas/pcui';
 
 import { Events } from '../events';
-import { ColorPanel } from './color-panel';
 import { i18n } from './localization';
 import { SplatList } from './splat-list';
 import sceneImportSvg from './svg/import.svg';
@@ -117,7 +116,6 @@ class ScenePanel extends Container {
         this.append(splatListContainer);
         this.append(transformHeader);
         this.append(new Transform(events));
-        this.append(new ColorPanel(events));
     }
 }
 

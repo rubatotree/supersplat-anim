@@ -4,7 +4,6 @@ import { sampleIndex } from '../animation/bgs-provider';
 import { Events } from '../events';
 import type { Splat } from '../splat';
 import { i18n } from './localization';
-import colorsIcon from './svg/colors.svg';
 import bindingIcon from './svg/orient.svg';
 import type { Tooltips } from './tooltips';
 
@@ -30,7 +29,6 @@ class AnimationControls extends Container {
         const rate = new NumericInput({ id: 'animation-rate', value: 1, min: 0.01, max: 16, precision: 2 });
         const time = new NumericInput({ id: 'animation-time', value: 0, min: 0, precision: 3 });
         const bind = new Button({ id: 'animation-bind' });
-        const colors = new Button({ id: 'animation-colors' });
         const samples = new Label({ id: 'animation-samples' });
         const inspector = new Label({ id: 'animation-inspector' });
         const legend = new Container({ id: 'animation-legend' });
@@ -39,7 +37,6 @@ class AnimationControls extends Container {
         const details = new Container({ id: 'animation-details', hidden: true });
         i18n.bindText(title, 'animation.title');
         i18n.bindText(bind, 'animation.bind-pose');
-        i18n.bindText(colors, 'animation.binding-colors');
         i18n.bindText(axes, 'animation.asset-axes');
         header.append(title);
         header.append(status);
@@ -55,7 +52,7 @@ class AnimationControls extends Container {
         const timeField = field(time, 'animation.seconds', 'animation-time-field');
         timeField.append(duration);
         const actions = new Container({ class: 'animation-actions' });
-        for (const [button, icon] of [[bind, bindingIcon], [colors, colorsIcon]] as const) {
+        for (const [button, icon] of [[bind, bindingIcon]] as const) {
             const svg = new DOMParser().parseFromString(decodeURIComponent(icon.slice('data:image/svg+xml,'.length)), 'image/svg+xml').documentElement;
             button.dom.prepend(svg);
             i18n.onChange(() => button.dom.prepend(svg), button);
@@ -105,7 +102,6 @@ class AnimationControls extends Container {
             status.text = i18n.t(`animation.${state}`);
             status.class.toggle('playing', state === 'playing');
             bind.dom.setAttribute('aria-pressed', String(!!active?.animation?.bindPose));
-            colors.dom.setAttribute('aria-pressed', String(events.functions.has('animation.bindingColors') && !!events.invoke('animation.bindingColors')));
         };
         const refreshTime = (): void => {
             if (!active?.animation?.frame) return;
@@ -243,16 +239,11 @@ class AnimationControls extends Container {
             bind.class.toggle('active', active.animation.bindPose);
             events.fire('timeline.setSeconds', events.invoke('timeline.seconds'));
         });
-        colors.on('click', () => events.fire('animation.setBindingColors', !events.invoke('animation.bindingColors')));
-        events.on('animation.bindingColors', (value: boolean) => {
-            colors.class.toggle('active', value);
-            refreshStatus();
-        });
         events.on('animation.capture', (active: boolean) => {
             this.enabled = !active;
         });
-        const names = ['layer', 'clip', 'rate', 'seconds', 'bind-pose', 'binding-colors'];
-        [layer, clip, rate, time, bind, colors].forEach((element, index) => {
+        const names = ['layer', 'clip', 'rate', 'seconds', 'bind-pose'];
+        [layer, clip, rate, time, bind].forEach((element, index) => {
             tooltips.register(element, () => i18n.t(`animation.${names[index]}`), 'top');
             i18n.onChange(() => {
                 const label = i18n.t(`animation.${names[index]}`);

@@ -1,5 +1,18 @@
 @use 'colors.scss' as *;
 
+// 颜色分区展开后仍保证所有外观控件可访问，避免弹窗超出画布。
+#appearance-panel {
+    max-height: calc(100% - 48px);
+    overflow-y: auto;
+
+    & > * { flex-shrink: 0; }
+
+    @media (max-width: 600px) {
+        right: 10px;
+        max-width: calc(100% - 20px);
+    }
+}
+
 // shared shell for the appearance, overlays and settings popups
 .options-panel {
     top: 50%;

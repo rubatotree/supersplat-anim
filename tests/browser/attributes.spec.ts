@@ -154,7 +154,10 @@ test('colour-panel interaction, independent copies, project round trip and pseud
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
     await page.goto('/?load=/fixtures/conformance/scene.json');
     await page.waitForFunction(() => (window as any).scene?.elements.some((s: any) => s.animation?.frame));
+    await page.locator('#right-toolbar-appearance').click();
     await page.locator('.color-panel-header').click();
+    await expect(page.locator('#scene-panel .color-panel-section')).toHaveCount(0);
+    await expect(page.locator('#appearance-panel .attribute-panel')).toBeVisible();
     await page.locator('.attribute-mode').click();
     await page.getByText('Depth', { exact: true }).click();
     await page.locator('.attribute-panel .pcui-select-input').nth(1).click();
@@ -232,6 +235,7 @@ test('colour-panel interaction, independent copies, project round trip and pseud
     }))).toBeTruthy();
     await (await videoPromise).saveAs('test-results/attribute-video.webm');
     await page.setViewportSize({ width: 390, height: 720 });
+    await page.evaluate(() => (window as any).scene.events.fire('appearancePanel.setVisible', true));
     await page.locator('.color-panel-header').click();
     await page.evaluate(() => { (window as any).scene.forceRender = true; });
     await page.waitForTimeout(100);

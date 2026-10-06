@@ -3,6 +3,7 @@ import { Color } from 'playcanvas';
 
 import { Events } from '../events';
 import { ShortcutManager } from '../shortcut-manager';
+import { ColorPanel } from './color-panel';
 import { i18n } from './localization';
 import appearanceSvg from './svg/appearance.svg';
 import centersSvg from './svg/centers.svg';
@@ -307,6 +308,7 @@ class AppearancePanel extends Container {
         colorsRow.append(colorPickers);
 
         this.append(header);
+        this.append(new ColorPanel(events));
         this.append(displayRow);
         this.append(selectionDisplayRow);
         this.append(colorsRow);

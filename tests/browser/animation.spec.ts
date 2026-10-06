@@ -97,9 +97,13 @@ test('animation controls expose bind pose, colors, source frames and narrow layo
     await expect(page.locator('#animation-details')).toBeVisible();
     await page.locator('#animation-bind').click();
     await expect(page.locator('#animation-samples')).toHaveText('Bind pose');
-    await page.locator('#animation-colors').click();
-    await expect(page.locator('#animation-colors')).toHaveClass(/active/);
-    await expect(page.locator('#animation-colors')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#animation-colors')).toHaveCount(0);
+    await page.locator('#right-toolbar-appearance').click();
+    await page.locator('#appearance-panel .color-panel-header').click();
+    await page.locator('.attribute-mode').click();
+    await page.getByText('Bound object', { exact: true }).click();
+    expect(await page.evaluate(() => (window as any).scene.events.invoke('selection').attributeSettings.mode)).toBe('binding');
+    await page.locator('#right-toolbar-appearance').click();
     await page.locator('#animation-bind').click();
     await expect(page.locator('#animation-samples')).toContainText('Sample');
     const inspector = await page.evaluate(async () => {
@@ -134,7 +138,7 @@ test('animation controls expose bind pose, colors, source frames and narrow layo
     });
     await expect(page.locator('#animation-inspector')).toContainText('选择单个高斯');
     expect(await page.locator('#animation-bind svg').count()).toBe(1);
-    expect(await page.locator('#animation-colors svg').count()).toBe(1);
+    expect(await page.locator('#animation-colors').count()).toBe(0);
     await page.screenshot({ path: 'test-results/animation-controls-desktop-zh.png' });
     await expect(page.locator('#controls-wrap #animation-collapse')).toBeVisible();
     // collapse/expand hides the whole controls block and persists the choice

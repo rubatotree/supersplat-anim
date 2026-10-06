@@ -15,8 +15,7 @@ const createSvg = (svgString: string) => {
     return new DOMParser().parseFromString(decodedStr, 'image/svg+xml').documentElement;
 };
 
-// collapsible colors section of the scene panel: grades the current splat, so
-// it lives with the rest of the current-splat state (like transform)
+// 外观面板中的颜色分区，控件始终作用于当前选中的图层。
 class ColorPanel extends Container {
     constructor(events: Events, args = {}) {
         args = {
