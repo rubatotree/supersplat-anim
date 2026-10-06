@@ -99,7 +99,6 @@ test('animation controls expose bind pose, colors, source frames and narrow layo
     await expect(page.locator('#animation-samples')).toHaveText('Bind pose');
     await expect(page.locator('#animation-colors')).toHaveCount(0);
     await page.locator('#right-toolbar-appearance').click();
-    await page.locator('#appearance-panel .color-panel-header').click();
     await page.locator('.attribute-mode').click();
     await page.getByText('Bound object', { exact: true }).click();
     expect(await page.evaluate(() => (window as any).scene.events.invoke('selection').attributeSettings.mode)).toBe('binding');

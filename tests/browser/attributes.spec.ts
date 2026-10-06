@@ -155,7 +155,10 @@ test('colour-panel interaction, independent copies, project round trip and pseud
     await page.goto('/?load=/fixtures/conformance/scene.json');
     await page.waitForFunction(() => (window as any).scene?.elements.some((s: any) => s.animation?.frame));
     await page.locator('#right-toolbar-appearance').click();
-    await page.locator('.color-panel-header').click();
+    await page.locator('.attribute-mode').scrollIntoViewIfNeeded();
+    await expect(page.locator('.color-panel-header svg')).toHaveCount(0);
+    expect(await page.locator('.color-panel-header').getAttribute('role')).toBeNull();
+    expect(await page.locator('#appearance-panel').evaluate(panel => panel.lastElementChild?.classList.contains('color-panel-section'))).toBeTruthy();
     await expect(page.locator('#scene-panel .color-panel-section')).toHaveCount(0);
     await expect(page.locator('#appearance-panel .attribute-panel')).toBeVisible();
     await page.locator('.attribute-mode').click();
@@ -236,7 +239,7 @@ test('colour-panel interaction, independent copies, project round trip and pseud
     await (await videoPromise).saveAs('test-results/attribute-video.webm');
     await page.setViewportSize({ width: 390, height: 720 });
     await page.evaluate(() => (window as any).scene.events.fire('appearancePanel.setVisible', true));
-    await page.locator('.color-panel-header').click();
+    await page.locator('.attribute-mode').scrollIntoViewIfNeeded();
     await page.evaluate(() => { (window as any).scene.forceRender = true; });
     await page.waitForTimeout(100);
     await page.screenshot({ path: 'test-results/attribute-narrow.png' });

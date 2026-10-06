@@ -5,15 +5,8 @@ import { Events } from '../events';
 import { Splat } from '../splat';
 import { AttributePanel } from './attribute-panel';
 import { i18n } from './localization';
-import arrowSvg from './svg/arrow.svg';
 import checkSvg from './svg/check.svg';
-import colorsSvg from './svg/colors.svg';
 import editUndoSvg from './svg/edit-undo.svg';
-
-const createSvg = (svgString: string) => {
-    const decodedStr = decodeURIComponent(svgString.substring('data:image/svg+xml,'.length));
-    return new DOMParser().parseFromString(decodedStr, 'image/svg+xml').documentElement;
-};
 
 // 外观面板中的颜色分区，控件始终作用于当前选中的图层。
 class ColorPanel extends Container {
@@ -25,30 +18,18 @@ class ColorPanel extends Container {
 
         super(args);
 
-        // header (click to expand/collapse)
+        // 固定展开的着色分区标题，与外观面板的其它分区保持一致。
 
         const header = new Container({
-            class: ['panel-header', 'color-panel-header']
+            class: ['panel-header', 'options-panel-section', 'color-panel-header']
         });
-
-        const icon = new Label({
-            class: 'panel-header-icon'
-        });
-        icon.dom.appendChild(createSvg(colorsSvg));
 
         const label = new Label({
             class: 'panel-header-label'
         });
         i18n.bindText(label, 'panel.colors');
 
-        const collapseArrow = new Label({
-            class: 'color-panel-collapse'
-        });
-        collapseArrow.dom.appendChild(createSvg(arrowSvg));
-
-        header.append(icon);
         header.append(label);
-        header.append(collapseArrow);
 
         // tint
 
@@ -233,10 +214,8 @@ class ColorPanel extends Container {
         controlRow.append(apply);
         controlRow.append(reset);
 
-        // the collapsible body, closed by default
         const content = new Container({
-            class: 'color-panel-content',
-            hidden: true
+            class: 'color-panel-content'
         });
 
         content.append(new AttributePanel(events));
@@ -248,33 +227,10 @@ class ColorPanel extends Container {
         content.append(whitePointRow);
         content.append(transparencyRow);
         content.append(controlRow);
-        // dark strip closing the panel bottom, as the scene panel had before
-        // this section joined it. Lives in the collapsible content so the
-        // collapsed state still ends cleanly at the section header bar
         content.append(new Container({ class: 'color-panel-footer' }));
 
         this.append(header);
         this.append(content);
-
-        // the header acts as a button: focusable, toggleable from the
-        // keyboard, and announcing its expanded state
-        header.dom.setAttribute('role', 'button');
-        header.dom.setAttribute('tabindex', '0');
-        header.dom.setAttribute('aria-expanded', 'false');
-
-        const toggleContent = () => {
-            content.hidden = !content.hidden;
-            collapseArrow.class[content.hidden ? 'remove' : 'add']('expanded');
-            header.dom.setAttribute('aria-expanded', String(!content.hidden));
-        };
-
-        header.on('click', toggleContent);
-        header.dom.addEventListener('keydown', (event: KeyboardEvent) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                toggleContent();
-            }
-        });
 
         // The controls hold a *pending* grade rather than editing anything directly.
         // The viewport previews it on whatever an Apply would affect - the selection,

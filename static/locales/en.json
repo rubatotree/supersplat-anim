@@ -48,7 +48,7 @@
     "panel.scene.transform.position": "Position",
     "panel.scene.transform.rotation": "Rotation",
     "panel.scene.transform.scale": "Scale",
-    "panel.colors": "Colors",
+    "panel.colors": "Shading",
     "panel.colors.tint": "Tint",
     "panel.colors.temperature": "Temperature",
     "panel.colors.saturation": "Saturation",

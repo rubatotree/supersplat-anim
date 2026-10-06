@@ -1,37 +1,11 @@
 @use 'colors.scss' as *;
 
-// 外观面板的颜色分区
+// 外观面板的着色分区
 .color-panel-section {
     display: flex;
     flex-direction: column;
 
-    & > .color-panel-header {
-        cursor: pointer;
-
-        & > .panel-header-icon {
-            & > svg {
-                display: block;
-                width: 16px;
-                height: 16px;
-            }
-        }
-
-        & > .color-panel-collapse {
-            margin: 0 6px;
-            color: $clr-default;
-
-            & > svg {
-                display: block;
-                width: 12px;
-                height: 12px;
-                transition: transform 0.1s ease-out;
-            }
-
-            &.expanded > svg {
-                transform: rotate(90deg);
-            }
-        }
-    }
+    & > .color-panel-header .panel-header-label { font-size: 11px; }
 
     .color-panel-row {
         display: flex;

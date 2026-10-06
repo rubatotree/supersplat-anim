@@ -308,7 +308,6 @@ class AppearancePanel extends Container {
         colorsRow.append(colorPickers);
 
         this.append(header);
-        this.append(new ColorPanel(events));
         this.append(displayRow);
         this.append(selectionDisplayRow);
         this.append(colorsRow);
@@ -323,6 +322,7 @@ class AppearancePanel extends Container {
         this.append(ringSizeRow);
         this.append(ringsColorBlend.row);
         this.append(ringsSelectionBlend.row);
+        this.append(new ColorPanel(events));
 
         const updateDisplay = () => {
             setActive(gaussiansButton, events.invoke('view.gaussians'));
